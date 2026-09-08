@@ -1,21 +1,11 @@
 /**
- * Single data-access module for the admin app.
- *
- * Every read and write in the UI goes through the functions and hooks
- * exported here. Internally this currently operates on an in-memory store
- * seeded with mock data. Swapping to Supabase/Firebase later means
- * rewriting the bodies of the functions below — no component should need
- * to change.
+ * Single data-access module for the admin app. Every read and write in the
+ * UI goes through the functions and hooks exported here — they call
+ * Supabase directly, so this is the only file that knows about the
+ * database.
  */
 import { useMemo, useSyncExternalStore } from 'react'
-import {
-  seedBrands,
-  seedCoupons,
-  seedDeals,
-  seedProducts,
-  seedSaleEvents,
-  seedStores,
-} from '@/data/seed'
+import { supabase } from './supabaseClient'
 import type {
   Brand,
   Coupon,
@@ -24,26 +14,31 @@ import type {
   Network,
   Offer,
   Product,
+  ProductWithOffers,
   SaleEvent,
   Store,
 } from '@/types/catalog'
 
 type DB = {
-  products: Product[]
+  products: ProductWithOffers[]
   brands: Brand[]
   stores: Store[]
   deals: Deal[]
   coupons: Coupon[]
   saleEvents: SaleEvent[]
+  loaded: boolean
+  error: string | null
 }
 
 let db: DB = {
-  products: seedProducts,
-  brands: seedBrands,
-  stores: seedStores,
-  deals: seedDeals,
-  coupons: seedCoupons,
-  saleEvents: seedSaleEvents,
+  products: [],
+  brands: [],
+  stores: [],
+  deals: [],
+  coupons: [],
+  saleEvents: [],
+  loaded: false,
+  error: null,
 }
 
 const listeners = new Set<() => void>()
@@ -70,14 +65,114 @@ function set(patch: Partial<DB>) {
   notify()
 }
 
-function nextId(prefix: string) {
-  return `${prefix}_${Math.random().toString(36).slice(2, 9)}`
+// ---------------------------------------------------------------------------
+// Fetchers — one per table
+// ---------------------------------------------------------------------------
+
+async function fetchProducts(): Promise<ProductWithOffers[]> {
+  const { data, error } = await supabase
+    .from('products')
+    .select('*, offers(*)')
+    .order('name')
+  if (error) throw error
+  return data as ProductWithOffers[]
 }
 
-// Simulates network latency so the UI can show pending/loading states now
-// and behaves the same once real requests are wired in.
-function tick() {
-  return new Promise<void>((resolve) => setTimeout(resolve, 200))
+async function fetchBrands(): Promise<Brand[]> {
+  const { data, error } = await supabase
+    .from('brands')
+    .select('*')
+    .order('name')
+  if (error) throw error
+  return data as Brand[]
+}
+
+async function fetchStores(): Promise<Store[]> {
+  const { data, error } = await supabase
+    .from('stores')
+    .select('*')
+    .order('name')
+  if (error) throw error
+  return data as Store[]
+}
+
+async function fetchDeals(): Promise<Deal[]> {
+  const { data, error } = await supabase
+    .from('deals')
+    .select('*')
+    .order('title')
+  if (error) throw error
+  return data as Deal[]
+}
+
+async function fetchCoupons(): Promise<Coupon[]> {
+  const { data, error } = await supabase
+    .from('coupons')
+    .select('*')
+    .order('code')
+  if (error) throw error
+  return data as Coupon[]
+}
+
+async function fetchSaleEvents(): Promise<SaleEvent[]> {
+  const { data, error } = await supabase
+    .from('sale_events')
+    .select('*')
+    .order('title')
+  if (error) throw error
+  return data as SaleEvent[]
+}
+
+type TableKey =
+  'products' | 'brands' | 'stores' | 'deals' | 'coupons' | 'saleEvents'
+
+const fetchers: Record<TableKey, () => Promise<unknown>> = {
+  products: fetchProducts,
+  brands: fetchBrands,
+  stores: fetchStores,
+  deals: fetchDeals,
+  coupons: fetchCoupons,
+  saleEvents: fetchSaleEvents,
+}
+
+async function reload(table: TableKey) {
+  const data = await fetchers[table]()
+  set({ [table]: data })
+}
+
+async function loadAll() {
+  try {
+    const [products, brands, stores, deals, coupons, saleEvents] =
+      await Promise.all([
+        fetchProducts(),
+        fetchBrands(),
+        fetchStores(),
+        fetchDeals(),
+        fetchCoupons(),
+        fetchSaleEvents(),
+      ])
+    set({
+      products,
+      brands,
+      stores,
+      deals,
+      coupons,
+      saleEvents,
+      loaded: true,
+      error: null,
+    })
+  } catch (err) {
+    set({
+      loaded: true,
+      error: err instanceof Error ? err.message : 'Failed to load data.',
+    })
+  }
+}
+
+void loadAll()
+
+export function reloadAll() {
+  return loadAll()
 }
 
 // ---------------------------------------------------------------------------
@@ -112,13 +207,18 @@ export function useSaleEvents() {
   return useDb().saleEvents
 }
 
+export function useDataStatus() {
+  const { loaded, error } = useDb()
+  return { loaded, error }
+}
+
 export function useNetworks(): Network[] {
   const { deals, brands } = useDb()
   return useMemo(() => computeNetworks(deals, brands), [deals, brands])
 }
 
 // ---------------------------------------------------------------------------
-// Computed / pure helpers — ported from the reference site's catalog module.
+// Computed / pure helpers
 // ---------------------------------------------------------------------------
 
 export function computeNetworks(deals: Deal[], brands: Brand[]): Network[] {
@@ -142,78 +242,136 @@ export function storeName(stores: Store[], slug: string): string {
 }
 
 export function discountPct(
-  deal: Pick<Deal, 'price' | 'originalPrice'>,
+  deal: Pick<Deal, 'price' | 'original_price'>,
 ): number {
-  if (!deal.originalPrice) return 0
-  return Math.round((1 - deal.price / deal.originalPrice) * 100)
+  if (!deal.original_price) return 0
+  return Math.round((1 - deal.price / deal.original_price) * 100)
 }
 
-export function bestOffer(product: Product): Offer {
-  return product.offers.reduce(
-    (best, o) => (o.price < best.price ? o : best),
-    product.offers[0],
-  )
+export function bestOffer(product: ProductWithOffers): Offer | undefined {
+  return product.offers.length
+    ? product.offers.reduce(
+        (best, o) => (o.price < best.price ? o : best),
+        product.offers[0],
+      )
+    : undefined
 }
 
-export function offersSorted(product: Product): Offer[] {
+export function offersSorted(product: ProductWithOffers): Offer[] {
   return [...product.offers].sort((a, b) => a.price - b.price)
 }
 
-export function productDiscount(product: Product): number {
+export function productDiscount(product: ProductWithOffers): number {
   const best = bestOffer(product)
-  if (!best.originalPrice) return 0
-  return Math.round((1 - best.price / best.originalPrice) * 100)
+  if (!best?.original_price) return 0
+  return Math.round((1 - best.price / best.original_price) * 100)
 }
 
-export function productsByStore(products: Product[], slug: string): Product[] {
+export function productsByStore(
+  products: ProductWithOffers[],
+  slug: string,
+): ProductWithOffers[] {
   return products.filter((p) => p.offers.some((o) => o.store === slug))
 }
 
-export function lastUpdatedLabel(product: Product): string {
-  const ms = Date.now() - new Date(product.updatedAt).getTime()
-  const hours = Math.floor(ms / 3_600_000)
+export function freshnessLabel(product: ProductWithOffers): string {
+  if (!product.offers.length) return '—'
+  const hours = Math.min(...product.offers.map((o) => o.updated_hours_ago))
   if (hours < 1) return 'Just now'
   if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 30) return `${days}d ago`
-  return new Date(product.updatedAt).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-  })
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+export function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-|-$/g, '')
 }
 
 // ---------------------------------------------------------------------------
-// Products
+// Brands
 // ---------------------------------------------------------------------------
 
-export type ProductInput = Omit<Product, 'id' | 'updatedAt'>
+export type BrandInput = Brand
 
-export async function createProduct(input: ProductInput): Promise<Product> {
-  await tick()
-  const product: Product = {
-    ...input,
-    id: nextId('p'),
-    updatedAt: new Date().toISOString(),
+export async function createBrand(input: BrandInput): Promise<void> {
+  const { error } = await supabase.from('brands').insert(input)
+  if (error) throw error
+  await reload('brands')
+}
+
+export async function updateBrand(
+  slug: string,
+  patch: Partial<BrandInput>,
+): Promise<void> {
+  const { error } = await supabase.from('brands').update(patch).eq('slug', slug)
+  if (error) throw error
+  await reload('brands')
+}
+
+export async function deleteBrand(slug: string): Promise<void> {
+  const { error } = await supabase.from('brands').delete().eq('slug', slug)
+  if (error) throw error
+  await reload('brands')
+}
+
+// ---------------------------------------------------------------------------
+// Products (+ nested offers)
+// ---------------------------------------------------------------------------
+
+export type OfferInput = Omit<Offer, 'id' | 'product_id'>
+export type ProductInput = Omit<Product, 'id'> & { offers: OfferInput[] }
+
+export async function createProduct(input: ProductInput): Promise<void> {
+  const { offers, ...fields } = input
+  const id = input.slug
+  const { error: productError } = await supabase
+    .from('products')
+    .insert({ id, ...fields })
+  if (productError) throw productError
+  if (offers.length) {
+    const { error: offerError } = await supabase
+      .from('offers')
+      .insert(offers.map((o) => ({ ...o, product_id: id })))
+    if (offerError) throw offerError
   }
-  set({ products: [product, ...db.products] })
-  return product
+  await reload('products')
 }
 
 export async function updateProduct(
   id: string,
   patch: Partial<ProductInput>,
 ): Promise<void> {
-  await tick()
-  set({
-    products: db.products.map((p) =>
-      p.id === id ? { ...p, ...patch, updatedAt: new Date().toISOString() } : p,
-    ),
-  })
+  const { offers, ...fields } = patch
+  if (Object.keys(fields).length) {
+    const { error } = await supabase
+      .from('products')
+      .update(fields)
+      .eq('id', id)
+    if (error) throw error
+  }
+  if (offers) {
+    const { error: deleteError } = await supabase
+      .from('offers')
+      .delete()
+      .eq('product_id', id)
+    if (deleteError) throw deleteError
+    if (offers.length) {
+      const { error: insertError } = await supabase
+        .from('offers')
+        .insert(offers.map((o) => ({ ...o, product_id: id })))
+      if (insertError) throw insertError
+    }
+  }
+  await reload('products')
 }
 
 export async function deleteProduct(id: string): Promise<void> {
-  await tick()
-  set({ products: db.products.filter((p) => p.id !== id) })
+  await supabase.from('offers').delete().eq('product_id', id)
+  const { error } = await supabase.from('products').delete().eq('id', id)
+  if (error) throw error
+  await reload('products')
 }
 
 // ---------------------------------------------------------------------------
@@ -222,25 +380,25 @@ export async function deleteProduct(id: string): Promise<void> {
 
 export type StoreInput = Store
 
-export async function createStore(input: StoreInput): Promise<Store> {
-  await tick()
-  set({ stores: [input, ...db.stores] })
-  return input
+export async function createStore(input: StoreInput): Promise<void> {
+  const { error } = await supabase.from('stores').insert(input)
+  if (error) throw error
+  await reload('stores')
 }
 
 export async function updateStore(
   slug: string,
   patch: Partial<StoreInput>,
 ): Promise<void> {
-  await tick()
-  set({
-    stores: db.stores.map((s) => (s.slug === slug ? { ...s, ...patch } : s)),
-  })
+  const { error } = await supabase.from('stores').update(patch).eq('slug', slug)
+  if (error) throw error
+  await reload('stores')
 }
 
 export async function deleteStore(slug: string): Promise<void> {
-  await tick()
-  set({ stores: db.stores.filter((s) => s.slug !== slug) })
+  const { error } = await supabase.from('stores').delete().eq('slug', slug)
+  if (error) throw error
+  await reload('stores')
 }
 
 // ---------------------------------------------------------------------------
@@ -252,24 +410,25 @@ export type DealInput = Omit<Deal, 'id' | 'clicks' | 'status'> & {
   status?: DealStatus
 }
 
-export async function createDeal(input: DealInput): Promise<Deal> {
-  await tick()
-  const deal: Deal = {
+export async function createDeal(input: DealInput): Promise<void> {
+  const id = `DL-${Date.now().toString(36)}`
+  const { error } = await supabase.from('deals').insert({
     ...input,
-    id: nextId('d'),
+    id,
     clicks: input.clicks ?? 0,
     status: input.status ?? 'ACTIVE',
-  }
-  set({ deals: [deal, ...db.deals] })
-  return deal
+  })
+  if (error) throw error
+  await reload('deals')
 }
 
 export async function updateDeal(
   id: string,
   patch: Partial<DealInput>,
 ): Promise<void> {
-  await tick()
-  set({ deals: db.deals.map((d) => (d.id === id ? { ...d, ...patch } : d)) })
+  const { error } = await supabase.from('deals').update(patch).eq('id', id)
+  if (error) throw error
+  await reload('deals')
 }
 
 export async function setDealStatus(
@@ -280,55 +439,38 @@ export async function setDealStatus(
 }
 
 export async function deleteDeal(id: string): Promise<void> {
-  await tick()
-  set({ deals: db.deals.filter((d) => d.id !== id) })
+  const { error } = await supabase.from('deals').delete().eq('id', id)
+  if (error) throw error
+  await reload('deals')
 }
 
 // ---------------------------------------------------------------------------
 // Sale events
 // ---------------------------------------------------------------------------
 
-export type SaleEventInput = Omit<SaleEvent, 'id' | 'featured' | 'expired'> & {
-  featured?: boolean
-  expired?: boolean
-}
+export type SaleEventInput = Omit<SaleEvent, 'id'>
 
-export async function createSaleEvent(
-  input: SaleEventInput,
-): Promise<SaleEvent> {
-  await tick()
-  const event: SaleEvent = {
-    ...input,
-    id: nextId('s'),
-    featured: input.featured ?? false,
-    expired: input.expired ?? false,
-  }
-  set({ saleEvents: [event, ...db.saleEvents] })
-  return event
+export async function createSaleEvent(input: SaleEventInput): Promise<void> {
+  const id = `SE-${Date.now().toString(36)}`
+  const { error } = await supabase.from('sale_events').insert({ ...input, id })
+  if (error) throw error
+  await reload('saleEvents')
 }
 
 export async function updateSaleEvent(
   id: string,
   patch: Partial<SaleEventInput>,
 ): Promise<void> {
-  await tick()
-  set({
-    saleEvents: db.saleEvents.map((e) =>
-      e.id === id ? { ...e, ...patch } : e,
-    ),
-  })
-}
-
-export async function toggleSaleEventFeatured(id: string): Promise<void> {
-  const event = db.saleEvents.find((e) => e.id === id)
-  return updateSaleEvent(id, { featured: !event?.featured })
-}
-
-export async function expireSaleEvent(id: string): Promise<void> {
-  return updateSaleEvent(id, { expired: true, featured: false })
+  const { error } = await supabase
+    .from('sale_events')
+    .update(patch)
+    .eq('id', id)
+  if (error) throw error
+  await reload('saleEvents')
 }
 
 export async function deleteSaleEvent(id: string): Promise<void> {
-  await tick()
-  set({ saleEvents: db.saleEvents.filter((e) => e.id !== id) })
+  const { error } = await supabase.from('sale_events').delete().eq('id', id)
+  if (error) throw error
+  await reload('saleEvents')
 }

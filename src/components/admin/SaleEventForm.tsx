@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { FormField, inputClass, selectClass } from './FormField'
-import type { SaleEvent, SaleWindow, Store } from '@/types/catalog'
+import type { SaleEvent, SaleTimeWindow, Store } from '@/types/catalog'
 import { createSaleEvent, updateSaleEvent } from '@/lib/data'
 
-const windows: SaleWindow[] = ['today', 'tomorrow', 'this-week', 'next-week']
+const windows: SaleTimeWindow[] = [
+  'today',
+  'tomorrow',
+  'this-week',
+  'next-week',
+  'this-month',
+]
 
 export function SaleEventForm({
   event,
@@ -17,7 +23,9 @@ export function SaleEventForm({
   onCancel: () => void
 }) {
   const [title, setTitle] = useState(event?.title ?? '')
-  const [window, setWindow] = useState<SaleWindow>(event?.window ?? 'today')
+  const [timeWindow, setTimeWindow] = useState<SaleTimeWindow>(
+    (event?.time_window ?? 'today') as SaleTimeWindow,
+  )
   const [discount, setDiscount] = useState(event?.discount ?? '')
   const [code, setCode] = useState(event?.code ?? '')
   const [store, setStore] = useState(event?.store ?? stores[0].slug)
@@ -36,9 +44,9 @@ export function SaleEventForm({
 
     const input = {
       title,
-      window,
+      time_window: timeWindow,
       discount,
-      code: code.trim() || undefined,
+      code: code.trim() || null,
       store,
       detail,
     }
@@ -51,6 +59,8 @@ export function SaleEventForm({
         await createSaleEvent(input)
       }
       onDone()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save sale.')
     } finally {
       setSaving(false)
     }
@@ -73,8 +83,8 @@ export function SaleEventForm({
         <FormField label="Window">
           <select
             className={selectClass}
-            value={window}
-            onChange={(e) => setWindow(e.target.value as SaleWindow)}
+            value={timeWindow}
+            onChange={(e) => setTimeWindow(e.target.value as SaleTimeWindow)}
           >
             {windows.map((w) => (
               <option key={w} value={w}>

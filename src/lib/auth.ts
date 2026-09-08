@@ -1,25 +1,26 @@
 import { useSyncExternalStore } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from './supabaseClient'
 
 export type AuthUser = { email: string }
 
-const STORAGE_KEY = 'dc_admin_auth'
+type AuthState = { session: Session | null; initialized: boolean }
+
 const listeners = new Set<() => void>()
+let state: AuthState = { session: null, initialized: false }
 
-function readStoredUser(): AuthUser | null {
-  if (typeof window === 'undefined') return null
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY)
-    return raw ? (JSON.parse(raw) as AuthUser) : null
-  } catch {
-    return null
-  }
-}
-
-let cachedUser: AuthUser | null = readStoredUser()
-
-function notify() {
+function setState(patch: Partial<AuthState>) {
+  state = { ...state, ...patch }
   for (const l of listeners) l()
 }
+
+supabase.auth.getSession().then(({ data }) => {
+  setState({ session: data.session, initialized: true })
+})
+
+supabase.auth.onAuthStateChange((_event, newSession) => {
+  setState({ session: newSession, initialized: true })
+})
 
 function subscribe(listener: () => void) {
   listeners.add(listener)
@@ -27,44 +28,34 @@ function subscribe(listener: () => void) {
 }
 
 function getSnapshot() {
-  return cachedUser
+  return state
 }
 
-function getServerSnapshot() {
-  return null
+function getServerSnapshot(): AuthState {
+  return { session: null, initialized: false }
 }
 
-/**
- * Fake auth check. Replace the body of this function with a real
- * Supabase/Firebase sign-in call later — every consumer goes through
- * useAuth(), so nothing outside this file needs to change.
- */
 export async function login(
   email: string,
   password: string,
 ): Promise<{ ok: true } | { ok: false; error: string }> {
-  await new Promise((resolve) => setTimeout(resolve, 350))
-
-  if (!/^\S+@\S+\.\S+$/.test(email)) {
-    return { ok: false, error: 'Enter a valid email address.' }
-  }
-  if (password.length < 6) {
-    return { ok: false, error: 'Password must be at least 6 characters.' }
-  }
-
-  cachedUser = { email }
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(cachedUser))
-  notify()
+  const { error } = await supabase.auth.signInWithPassword({ email, password })
+  if (error) return { ok: false, error: error.message }
   return { ok: true }
 }
 
 export function logout() {
-  cachedUser = null
-  window.localStorage.removeItem(STORAGE_KEY)
-  notify()
+  void supabase.auth.signOut()
 }
 
 export function useAuth() {
-  const user = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
-  return { user, isAuthenticated: !!user, login, logout }
+  const { session, initialized } = useSyncExternalStore(
+    subscribe,
+    getSnapshot,
+    getServerSnapshot,
+  )
+  const user: AuthUser | null = session?.user.email
+    ? { email: session.user.email }
+    : null
+  return { user, isAuthenticated: !!user, isReady: initialized, login, logout }
 }

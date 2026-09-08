@@ -13,7 +13,7 @@ export function NetworkSelect({
   onChange: (value: string) => void
 }) {
   const [addingNew, setAddingNew] = useState(
-    !networks.includes(value) && value !== '',
+    networks.length === 0 || (!networks.includes(value) && value !== ''),
   )
 
   if (addingNew) {

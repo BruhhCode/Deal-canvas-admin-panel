@@ -3,35 +3,34 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
-import { StoreForm } from '@/components/admin/StoreForm'
+import { BrandForm } from '@/components/admin/BrandForm'
+import { categoryName } from '@/types/catalog'
+import type { Brand } from '@/types/catalog'
 import {
-  deleteStore,
-  productsByStore,
+  deleteBrand,
   useBrands,
   useDataStatus,
+  useDeals,
   useProducts,
-  useStores,
 } from '@/lib/data'
-import type { Store } from '@/types/catalog'
 
-export const Route = createFileRoute('/admin/stores')({
-  component: StoresTab,
+export const Route = createFileRoute('/admin/brands')({
+  component: BrandsTab,
 })
 
-function StoresTab() {
-  const stores = useStores()
-  const products = useProducts()
+function BrandsTab() {
   const brands = useBrands()
+  const products = useProducts()
+  const deals = useDeals()
   const { loaded } = useDataStatus()
-  const [editing, setEditing] = useState<Store | 'new' | null>(null)
-  const [deleting, setDeleting] = useState<Store | null>(null)
+  const [editing, setEditing] = useState<Brand | 'new' | null>(null)
+  const [deleting, setDeleting] = useState<Brand | null>(null)
 
-  const networks = Array.from(
-    new Set([...stores.map((s) => s.network), ...brands.map((b) => b.network)]),
-  ).sort()
+  const networks = Array.from(new Set(brands.map((b) => b.network))).sort()
 
-  const affectedProductCount = deleting
-    ? productsByStore(products, deleting.slug).length
+  const affectedCount = deleting
+    ? products.filter((p) => p.brand === deleting.slug).length +
+      deals.filter((d) => d.brand === deleting.slug).length
     : 0
 
   return (
@@ -42,55 +41,57 @@ function StoresTab() {
           onClick={() => setEditing('new')}
           className="rounded-sm bg-primary px-5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground"
         >
-          + Add store
+          + Add brand
         </button>
       </div>
 
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[900px] text-left text-sm">
+        <table className="w-full min-w-[760px] text-left text-sm">
           <thead className="bg-cream text-xs uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
-              <th className="px-4 py-3">Store</th>
+              <th className="px-4 py-3">Brand</th>
+              <th className="px-4 py-3">Category</th>
               <th className="px-4 py-3">Network</th>
-              <th className="px-4 py-3">Campaign</th>
-              <th className="px-4 py-3">Store ID</th>
               <th className="px-4 py-3">Products</th>
-              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Deals</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y">
-            {stores.map((st) => (
-              <tr key={st.slug}>
+            {brands.map((b) => (
+              <tr key={b.slug}>
                 <td className="px-4 py-3">
-                  {st.name}
-                  {st.featured ? (
+                  {b.name}
+                  {b.featured ? (
                     <span className="ml-2 rounded-full border border-clay/30 bg-clay/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-clay">
                       Featured
                     </span>
                   ) : null}
                 </td>
-                <td className="px-4 py-3">{st.network}</td>
-                <td className="px-4 py-3">{st.campaign}</td>
-                <td className="px-4 py-3">{st.store_id}</td>
                 <td className="px-4 py-3">
-                  {productsByStore(products, st.slug).length}
+                  {b.category ? categoryName(b.category) : '—'}
                 </td>
-                <td className="px-4 py-3 text-clay">Active</td>
+                <td className="px-4 py-3">{b.network}</td>
+                <td className="px-4 py-3">
+                  {products.filter((p) => p.brand === b.slug).length}
+                </td>
+                <td className="px-4 py-3">
+                  {deals.filter((d) => d.brand === b.slug).length}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      aria-label={`Edit ${st.name}`}
-                      onClick={() => setEditing(st)}
+                      aria-label={`Edit ${b.name}`}
+                      onClick={() => setEditing(b)}
                       className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
                     <button
                       type="button"
-                      aria-label={`Delete ${st.name}`}
-                      onClick={() => setDeleting(st)}
+                      aria-label={`Delete ${b.name}`}
+                      onClick={() => setDeleting(b)}
                       className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
@@ -99,13 +100,15 @@ function StoresTab() {
                 </td>
               </tr>
             ))}
-            {stores.length === 0 ? (
+            {brands.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={6}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
-                  {loaded ? 'No stores yet.' : 'Loading stores...'}
+                  {loaded
+                    ? 'No brands yet — add one to unlock Products and Deals.'
+                    : 'Loading brands...'}
                 </td>
               </tr>
             ) : null}
@@ -115,11 +118,11 @@ function StoresTab() {
 
       {editing ? (
         <Modal
-          title={editing === 'new' ? 'Add store' : 'Edit store'}
+          title={editing === 'new' ? 'Add brand' : 'Edit brand'}
           onClose={() => setEditing(null)}
         >
-          <StoreForm
-            store={editing === 'new' ? undefined : editing}
+          <BrandForm
+            brand={editing === 'new' ? undefined : editing}
             networks={networks}
             onDone={() => setEditing(null)}
             onCancel={() => setEditing(null)}
@@ -129,17 +132,17 @@ function StoresTab() {
 
       {deleting ? (
         <ConfirmDialog
-          title="Delete store"
+          title="Delete brand"
           description={
-            affectedProductCount > 0
-              ? `This will permanently remove "${deleting.name}". ${affectedProductCount} product offer${
-                  affectedProductCount === 1 ? '' : 's'
-                } currently point at this store and will be left referencing a removed store.`
-              : `This will permanently remove "${deleting.name}" from the catalogue.`
+            affectedCount > 0
+              ? `This will permanently remove "${deleting.name}". ${affectedCount} product/deal record${
+                  affectedCount === 1 ? '' : 's'
+                } currently reference this brand and will be left referencing a removed brand.`
+              : `This will permanently remove "${deleting.name}".`
           }
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
-            await deleteStore(deleting.slug)
+            await deleteBrand(deleting.slug)
             setDeleting(null)
           }}
         />

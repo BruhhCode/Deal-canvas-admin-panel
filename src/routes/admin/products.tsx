@@ -9,14 +9,15 @@ import {
   bestOffer,
   brandName,
   deleteProduct,
-  lastUpdatedLabel,
+  freshnessLabel,
   productDiscount,
   useBrands,
+  useDataStatus,
   useProducts,
   useStores,
 } from '@/lib/data'
 import { categoryName } from '@/types/catalog'
-import type { Product } from '@/types/catalog'
+import type { ProductWithOffers } from '@/types/catalog'
 
 export const Route = createFileRoute('/admin/products')({
   component: ProductsTab,
@@ -26,10 +27,11 @@ function ProductsTab() {
   const products = useProducts()
   const brands = useBrands()
   const stores = useStores()
+  const { loaded, error } = useDataStatus()
   const { format } = useCurrency()
   const [q, setQ] = useState('')
-  const [editing, setEditing] = useState<Product | 'new' | null>(null)
-  const [deleting, setDeleting] = useState<Product | null>(null)
+  const [editing, setEditing] = useState<ProductWithOffers | 'new' | null>(null)
+  const [deleting, setDeleting] = useState<ProductWithOffers | null>(null)
 
   const rows = useMemo(
     () =>
@@ -57,7 +59,8 @@ function ProductsTab() {
           <button
             type="button"
             onClick={() => setEditing('new')}
-            className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] hover:border-clay"
+            disabled={brands.length === 0}
+            className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] hover:border-clay disabled:pointer-events-none disabled:opacity-50"
           >
             Add product
           </button>
@@ -75,6 +78,12 @@ function ProductsTab() {
         </div>
       </div>
 
+      {error ? (
+        <p className="mb-4 rounded-sm border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Failed to load products: {error}
+        </p>
+      ) : null}
+
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[940px] text-left text-sm">
           <thead className="bg-cream text-xs uppercase tracking-[0.14em] text-muted-foreground">
@@ -90,46 +99,53 @@ function ProductsTab() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.map((p) => (
-              <tr key={p.id}>
-                <td className="px-4 py-3">{p.name}</td>
-                <td className="px-4 py-3">{brandName(brands, p.brand)}</td>
-                <td className="px-4 py-3">{categoryName(p.category)}</td>
-                <td className="px-4 py-3">{p.offers.length}</td>
-                <td className="px-4 py-3">{format(bestOffer(p).price)}</td>
-                <td className="px-4 py-3">{productDiscount(p)}%</td>
-                <td className="px-4 py-3 text-muted-foreground">
-                  {lastUpdatedLabel(p)}
-                </td>
-                <td className="px-4 py-3">
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      aria-label={`Edit ${p.name}`}
-                      onClick={() => setEditing(p)}
-                      className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      aria-label={`Delete ${p.name}`}
-                      onClick={() => setDeleting(p)}
-                      className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
+            {rows.map((p) => {
+              const best = bestOffer(p)
+              return (
+                <tr key={p.id}>
+                  <td className="px-4 py-3">{p.name}</td>
+                  <td className="px-4 py-3">{brandName(brands, p.brand)}</td>
+                  <td className="px-4 py-3">{categoryName(p.category)}</td>
+                  <td className="px-4 py-3">{p.offers.length}</td>
+                  <td className="px-4 py-3">
+                    {best ? format(best.price) : '—'}
+                  </td>
+                  <td className="px-4 py-3">{productDiscount(p)}%</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {freshnessLabel(p)}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        aria-label={`Edit ${p.name}`}
+                        onClick={() => setEditing(p)}
+                        className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${p.name}`}
+                        onClick={() => setDeleting(p)}
+                        className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
             {rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={8}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
-                  No products match your search.
+                  {loaded
+                    ? 'No products match your search.'
+                    : 'Loading products...'}
                 </td>
               </tr>
             ) : null}

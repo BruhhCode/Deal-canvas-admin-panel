@@ -27,6 +27,7 @@ export const Route = createFileRoute('/admin')({
 
 const tabs = [
   { label: 'Products', to: '/admin/products' },
+  { label: 'Brands', to: '/admin/brands' },
   { label: 'Stores', to: '/admin/stores' },
   { label: 'Deals', to: '/admin/deals' },
   { label: 'Sales', to: '/admin/sales' },
@@ -35,15 +36,15 @@ const tabs = [
 ] as const
 
 function AdminLayout() {
-  const { isAuthenticated, user, logout } = useAuth()
+  const { isAuthenticated, isReady, user, logout } = useAuth()
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
 
   useEffect(() => {
-    if (!isAuthenticated) {
+    if (isReady && !isAuthenticated) {
       navigate({ to: '/login' })
     }
-  }, [isAuthenticated, navigate])
+  }, [isReady, isAuthenticated, navigate])
 
   if (!isAuthenticated) return null
 

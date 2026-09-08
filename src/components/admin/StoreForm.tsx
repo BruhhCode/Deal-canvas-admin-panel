@@ -17,9 +17,20 @@ export function StoreForm({
 }) {
   const [name, setName] = useState(store?.name ?? '')
   const [slug, setSlug] = useState(store?.slug ?? '')
-  const [network, setNetwork] = useState(store?.network ?? networks[0])
+  const [description, setDescription] = useState(store?.description ?? '')
+  const [network, setNetwork] = useState(
+    store?.network ?? (networks.length ? networks[0] : ''),
+  )
+  const [domain, setDomain] = useState(store?.domain ?? '')
   const [campaign, setCampaign] = useState(store?.campaign ?? '')
-  const [storeId, setStoreId] = useState(store?.storeId ?? '')
+  const [storeId, setStoreId] = useState(store?.store_id ?? '')
+  const [subId, setSubId] = useState(store?.sub_id ?? 'home')
+  const [shipsTo, setShipsTo] = useState(store?.ships_to ?? 'US')
+  const [storeWideOffer, setStoreWideOffer] = useState(
+    store?.store_wide_offer ?? '',
+  )
+  const [featured, setFeatured] = useState(store?.featured ?? false)
+  const [sponsored, setSponsored] = useState(store?.sponsored ?? false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -31,21 +42,42 @@ export function StoreForm({
       !name.trim() ||
       !slug.trim() ||
       !network.trim() ||
+      !domain.trim() ||
       !campaign.trim() ||
-      !storeId.trim()
+      !storeId.trim() ||
+      !subId.trim() ||
+      !shipsTo.trim()
     ) {
-      setError('All fields are required.')
+      setError(
+        'Name, slug, network, domain, campaign, store ID, sub-ID and ships-to are required.',
+      )
       return
+    }
+
+    const fields = {
+      name,
+      network,
+      description: description.trim() || null,
+      domain,
+      campaign,
+      store_id: storeId,
+      sub_id: subId,
+      ships_to: shipsTo,
+      store_wide_offer: storeWideOffer.trim() || null,
+      featured,
+      sponsored,
     }
 
     setSaving(true)
     try {
       if (store) {
-        await updateStore(store.slug, { name, network, campaign, storeId })
+        await updateStore(store.slug, fields)
       } else {
-        await createStore({ name, slug, network, campaign, storeId })
+        await createStore({ slug, ...fields })
       }
       onDone()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save store.')
     } finally {
       setSaving(false)
     }
@@ -74,15 +106,34 @@ export function StoreForm({
         />
       </FormField>
 
-      <FormField label="Affiliate network">
-        <NetworkSelect
-          value={network}
-          networks={networks}
-          onChange={setNetwork}
+      <FormField label="Description (optional)">
+        <textarea
+          className={`${inputClass} min-h-16 resize-y`}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
         />
       </FormField>
 
       <div className="grid grid-cols-2 gap-4">
+        <FormField label="Affiliate network">
+          <NetworkSelect
+            value={network}
+            networks={networks}
+            onChange={setNetwork}
+          />
+        </FormField>
+        <FormField label="Domain">
+          <input
+            className={inputClass}
+            value={domain}
+            onChange={(e) => setDomain(e.target.value)}
+            placeholder="example.com"
+            required
+          />
+        </FormField>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
         <FormField label="Campaign">
           <input
             className={inputClass}
@@ -99,6 +150,51 @@ export function StoreForm({
             required
           />
         </FormField>
+        <FormField label="Sub-ID">
+          <input
+            className={inputClass}
+            value={subId}
+            onChange={(e) => setSubId(e.target.value)}
+            required
+          />
+        </FormField>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <FormField label="Ships to">
+          <input
+            className={inputClass}
+            value={shipsTo}
+            onChange={(e) => setShipsTo(e.target.value)}
+            required
+          />
+        </FormField>
+        <FormField label="Storewide offer (optional)">
+          <input
+            className={inputClass}
+            value={storeWideOffer}
+            onChange={(e) => setStoreWideOffer(e.target.value)}
+          />
+        </FormField>
+      </div>
+
+      <div className="flex gap-6">
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={featured}
+            onChange={(e) => setFeatured(e.target.checked)}
+          />
+          Featured
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={sponsored}
+            onChange={(e) => setSponsored(e.target.checked)}
+          />
+          Sponsored
+        </label>
       </div>
 
       <div className="flex justify-end gap-2 border-t pt-4">

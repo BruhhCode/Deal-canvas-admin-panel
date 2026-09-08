@@ -11,6 +11,7 @@ import {
   discountPct,
   setDealStatus,
   useBrands,
+  useDataStatus,
   useDeals,
 } from '@/lib/data'
 import type { Deal } from '@/types/catalog'
@@ -22,6 +23,7 @@ export const Route = createFileRoute('/admin/deals')({
 function DealsTab() {
   const deals = useDeals()
   const brands = useBrands()
+  const { loaded } = useDataStatus()
   const { format } = useCurrency()
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Deal | 'new' | null>(null)
@@ -58,7 +60,8 @@ function DealsTab() {
         <button
           type="button"
           onClick={() => setEditing('new')}
-          className="rounded-sm bg-primary px-5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground"
+          disabled={brands.length === 0}
+          className="rounded-sm bg-primary px-5 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-primary-foreground disabled:pointer-events-none disabled:opacity-50"
         >
           + Add deal
         </button>
@@ -138,7 +141,7 @@ function DealsTab() {
                   colSpan={9}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
-                  No deals match your search.
+                  {loaded ? 'No deals match your search.' : 'Loading deals...'}
                 </td>
               </tr>
             ) : null}
@@ -154,7 +157,12 @@ function DealsTab() {
           <DealForm
             deal={editing === 'new' ? undefined : editing}
             brands={brands}
-            networks={Array.from(new Set(deals.map((d) => d.network)))}
+            networks={Array.from(
+              new Set([
+                ...deals.map((d) => d.network),
+                ...brands.map((b) => b.network),
+              ]),
+            ).sort()}
             onDone={() => setEditing(null)}
             onCancel={() => setEditing(null)}
           />

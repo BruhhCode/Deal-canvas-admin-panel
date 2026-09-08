@@ -85,7 +85,7 @@ function AnalyticsTab() {
           <ul className="space-y-3 text-sm">
             {coupons
               .slice()
-              .sort((a, b) => b.usedToday - a.usedToday)
+              .sort((a, b) => b.used_today - a.used_today)
               .slice(0, 6)
               .map((c) => (
                 <li
@@ -94,7 +94,7 @@ function AnalyticsTab() {
                 >
                   <span className="font-mono text-xs">{c.code}</span>
                   <span className="text-muted-foreground">
-                    {c.usedToday} uses · {c.successRate}% success
+                    {c.used_today} uses · {c.success_rate}% success
                   </span>
                 </li>
               ))}
