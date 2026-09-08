@@ -139,3 +139,15 @@ export const CATEGORIES: Record<string, string> = {
 export function categoryName(slug: string): string {
   return CATEGORIES[slug] ?? slug
 }
+
+// Enforced by a CHECK constraint on brands/stores/deals.network in the
+// database — these are the only values Postgres will accept, so the UI
+// offers exactly this closed set rather than free text.
+export const NETWORKS = [
+  'Rakuten Advertising',
+  'Impact',
+  'Awin',
+  'CJ Affiliate',
+  'Admitad',
+  'Amazon Associates',
+] as const

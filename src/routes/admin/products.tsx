@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ProductForm } from '@/components/admin/ProductForm'
+import { errorMessage } from '@/components/admin/FormField'
 import { useCurrency } from '@/lib/currency'
 import {
   bestOffer,
@@ -174,8 +175,12 @@ function ProductsTab() {
           description={`This will permanently remove "${deleting.name}" and its offers.`}
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
-            await deleteProduct(deleting.id)
-            setDeleting(null)
+            try {
+              await deleteProduct(deleting.id)
+              setDeleting(null)
+            } catch (err) {
+              window.alert(errorMessage(err, 'Failed to delete product.'))
+            }
           }}
         />
       ) : null}

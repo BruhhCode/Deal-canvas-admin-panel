@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { BrandForm } from '@/components/admin/BrandForm'
+import { errorMessage } from '@/components/admin/FormField'
 import { categoryName } from '@/types/catalog'
 import type { Brand } from '@/types/catalog'
 import {
@@ -25,8 +26,6 @@ function BrandsTab() {
   const { loaded } = useDataStatus()
   const [editing, setEditing] = useState<Brand | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Brand | null>(null)
-
-  const networks = Array.from(new Set(brands.map((b) => b.network))).sort()
 
   const affectedCount = deleting
     ? products.filter((p) => p.brand === deleting.slug).length +
@@ -123,7 +122,6 @@ function BrandsTab() {
         >
           <BrandForm
             brand={editing === 'new' ? undefined : editing}
-            networks={networks}
             onDone={() => setEditing(null)}
             onCancel={() => setEditing(null)}
           />
@@ -142,8 +140,12 @@ function BrandsTab() {
           }
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
-            await deleteBrand(deleting.slug)
-            setDeleting(null)
+            try {
+              await deleteBrand(deleting.slug)
+              setDeleting(null)
+            } catch (err) {
+              window.alert(errorMessage(err, 'Failed to delete brand.'))
+            }
           }}
         />
       ) : null}

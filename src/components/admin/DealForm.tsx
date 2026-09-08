@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { FormField, inputClass, selectClass } from './FormField'
+import { FormField, errorMessage, inputClass, selectClass } from './FormField'
 import { NetworkSelect } from './NetworkSelect'
-import { CATEGORIES } from '@/types/catalog'
+import { CATEGORIES, NETWORKS } from '@/types/catalog'
 import type { Brand, Deal, DealStatus } from '@/types/catalog'
 import { createDeal, slugify, updateDeal } from '@/lib/data'
 
@@ -25,13 +25,11 @@ const textToLines = (text: string) =>
 export function DealForm({
   deal,
   brands,
-  networks,
   onDone,
   onCancel,
 }: {
   deal?: Deal
   brands: Brand[]
-  networks: string[]
   onDone: () => void
   onCancel: () => void
 }) {
@@ -48,7 +46,7 @@ export function DealForm({
   const [code, setCode] = useState(deal?.code ?? '')
   const [dealType, setDealType] = useState(deal?.deal_type ?? 'Store Sale')
   const [status, setStatus] = useState<DealStatus>(deal?.status ?? 'ACTIVE')
-  const [network, setNetwork] = useState(deal?.network ?? networks[0])
+  const [network, setNetwork] = useState<string>(deal?.network ?? NETWORKS[0])
   const [description, setDescription] = useState(deal?.description ?? '')
   const [image, setImage] = useState(deal?.image ?? '')
   const [merchantUrl, setMerchantUrl] = useState(deal?.merchant_url ?? '')
@@ -142,7 +140,7 @@ export function DealForm({
       }
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save deal.')
+      setError(errorMessage(err, 'Failed to save deal.'))
     } finally {
       setSaving(false)
     }
@@ -271,11 +269,7 @@ export function DealForm({
           </select>
         </FormField>
         <FormField label="Network">
-          <NetworkSelect
-            value={network}
-            networks={networks}
-            onChange={setNetwork}
-          />
+          <NetworkSelect value={network} onChange={setNetwork} />
         </FormField>
       </div>
 

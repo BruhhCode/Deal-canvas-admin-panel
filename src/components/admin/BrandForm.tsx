@@ -1,17 +1,16 @@
 import { useState } from 'react'
-import { FormField, inputClass, selectClass } from './FormField'
-import { CATEGORIES } from '@/types/catalog'
+import { FormField, errorMessage, inputClass, selectClass } from './FormField'
+import { NetworkSelect } from './NetworkSelect'
+import { CATEGORIES, NETWORKS } from '@/types/catalog'
 import type { Brand } from '@/types/catalog'
 import { createBrand, slugify, updateBrand } from '@/lib/data'
 
 export function BrandForm({
   brand,
-  networks,
   onDone,
   onCancel,
 }: {
   brand?: Brand
-  networks: string[]
   onDone: () => void
   onCancel: () => void
 }) {
@@ -21,9 +20,7 @@ export function BrandForm({
   const [category, setCategory] = useState(
     brand?.category ?? Object.keys(CATEGORIES)[0],
   )
-  const [network, setNetwork] = useState(
-    brand?.network ?? (networks.length ? networks[0] : ''),
-  )
+  const [network, setNetwork] = useState<string>(brand?.network ?? NETWORKS[0])
   const [featured, setFeatured] = useState(brand?.featured ?? false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -54,7 +51,7 @@ export function BrandForm({
       }
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save brand.')
+      setError(errorMessage(err, 'Failed to save brand.'))
     } finally {
       setSaving(false)
     }
@@ -109,12 +106,7 @@ export function BrandForm({
           </select>
         </FormField>
         <FormField label="Network">
-          <input
-            className={inputClass}
-            value={network}
-            onChange={(e) => setNetwork(e.target.value)}
-            required
-          />
+          <NetworkSelect value={network} onChange={setNetwork} />
         </FormField>
       </div>
 

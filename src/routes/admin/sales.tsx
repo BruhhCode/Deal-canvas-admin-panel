@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { SaleEventForm } from '@/components/admin/SaleEventForm'
+import { errorMessage } from '@/components/admin/FormField'
 import {
   deleteSaleEvent,
   storeName,
@@ -93,8 +94,12 @@ function SalesTab() {
           description={`This will permanently remove "${deleting.title}".`}
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
-            await deleteSaleEvent(deleting.id)
-            setDeleting(null)
+            try {
+              await deleteSaleEvent(deleting.id)
+              setDeleting(null)
+            } catch (err) {
+              window.alert(errorMessage(err, 'Failed to delete sale.'))
+            }
           }}
         />
       ) : null}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FormField, inputClass, selectClass } from './FormField'
+import { FormField, errorMessage, inputClass, selectClass } from './FormField'
 import type { SaleEvent, SaleTimeWindow, Store } from '@/types/catalog'
 import { createSaleEvent, updateSaleEvent } from '@/lib/data'
 
@@ -60,7 +60,7 @@ export function SaleEventForm({
       }
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save sale.')
+      setError(errorMessage(err, 'Failed to save sale.'))
     } finally {
       setSaving(false)
     }

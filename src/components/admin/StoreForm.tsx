@@ -1,26 +1,23 @@
 import { useState } from 'react'
-import { FormField, inputClass } from './FormField'
+import { FormField, errorMessage, inputClass } from './FormField'
 import { NetworkSelect } from './NetworkSelect'
+import { NETWORKS } from '@/types/catalog'
 import type { Store } from '@/types/catalog'
 import { createStore, updateStore } from '@/lib/data'
 
 export function StoreForm({
   store,
-  networks,
   onDone,
   onCancel,
 }: {
   store?: Store
-  networks: string[]
   onDone: () => void
   onCancel: () => void
 }) {
   const [name, setName] = useState(store?.name ?? '')
   const [slug, setSlug] = useState(store?.slug ?? '')
   const [description, setDescription] = useState(store?.description ?? '')
-  const [network, setNetwork] = useState(
-    store?.network ?? (networks.length ? networks[0] : ''),
-  )
+  const [network, setNetwork] = useState<string>(store?.network ?? NETWORKS[0])
   const [domain, setDomain] = useState(store?.domain ?? '')
   const [campaign, setCampaign] = useState(store?.campaign ?? '')
   const [storeId, setStoreId] = useState(store?.store_id ?? '')
@@ -77,7 +74,7 @@ export function StoreForm({
       }
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save store.')
+      setError(errorMessage(err, 'Failed to save store.'))
     } finally {
       setSaving(false)
     }
@@ -116,11 +113,7 @@ export function StoreForm({
 
       <div className="grid grid-cols-2 gap-4">
         <FormField label="Affiliate network">
-          <NetworkSelect
-            value={network}
-            networks={networks}
-            onChange={setNetwork}
-          />
+          <NetworkSelect value={network} onChange={setNetwork} />
         </FormField>
         <FormField label="Domain">
           <input

@@ -4,10 +4,10 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { StoreForm } from '@/components/admin/StoreForm'
+import { errorMessage } from '@/components/admin/FormField'
 import {
   deleteStore,
   productsByStore,
-  useBrands,
   useDataStatus,
   useProducts,
   useStores,
@@ -21,14 +21,9 @@ export const Route = createFileRoute('/admin/stores')({
 function StoresTab() {
   const stores = useStores()
   const products = useProducts()
-  const brands = useBrands()
   const { loaded } = useDataStatus()
   const [editing, setEditing] = useState<Store | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Store | null>(null)
-
-  const networks = Array.from(
-    new Set([...stores.map((s) => s.network), ...brands.map((b) => b.network)]),
-  ).sort()
 
   const affectedProductCount = deleting
     ? productsByStore(products, deleting.slug).length
@@ -120,7 +115,6 @@ function StoresTab() {
         >
           <StoreForm
             store={editing === 'new' ? undefined : editing}
-            networks={networks}
             onDone={() => setEditing(null)}
             onCancel={() => setEditing(null)}
           />
@@ -139,8 +133,12 @@ function StoresTab() {
           }
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
-            await deleteStore(deleting.slug)
-            setDeleting(null)
+            try {
+              await deleteStore(deleting.slug)
+              setDeleting(null)
+            } catch (err) {
+              window.alert(errorMessage(err, 'Failed to delete store.'))
+            }
           }}
         />
       ) : null}

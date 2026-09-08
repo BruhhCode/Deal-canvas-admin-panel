@@ -4,6 +4,7 @@ import { DealBadge } from '@/components/DealBadge'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DealForm } from '@/components/admin/DealForm'
+import { errorMessage, runAction } from '@/components/admin/FormField'
 import { useCurrency } from '@/lib/currency'
 import {
   brandName,
@@ -39,12 +40,18 @@ function DealsTab() {
     [deals, brands, q],
   )
 
-  async function togglePause(d: Deal) {
-    await setDealStatus(d.id, d.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED')
+  function togglePause(d: Deal) {
+    return runAction(
+      () => setDealStatus(d.id, d.status === 'PAUSED' ? 'ACTIVE' : 'PAUSED'),
+      'Failed to update deal status.',
+    )
   }
 
-  async function expire(d: Deal) {
-    await setDealStatus(d.id, 'EXPIRED')
+  function expire(d: Deal) {
+    return runAction(
+      () => setDealStatus(d.id, 'EXPIRED'),
+      'Failed to expire deal.',
+    )
   }
 
   return (
@@ -157,12 +164,6 @@ function DealsTab() {
           <DealForm
             deal={editing === 'new' ? undefined : editing}
             brands={brands}
-            networks={Array.from(
-              new Set([
-                ...deals.map((d) => d.network),
-                ...brands.map((b) => b.network),
-              ]),
-            ).sort()}
             onDone={() => setEditing(null)}
             onCancel={() => setEditing(null)}
           />
@@ -175,8 +176,12 @@ function DealsTab() {
           description={`This will permanently remove "${deleting.title}".`}
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
-            await deleteDeal(deleting.id)
-            setDeleting(null)
+            try {
+              await deleteDeal(deleting.id)
+              setDeleting(null)
+            } catch (err) {
+              window.alert(errorMessage(err, 'Failed to delete deal.'))
+            }
           }}
         />
       ) : null}

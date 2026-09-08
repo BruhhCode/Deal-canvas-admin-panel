@@ -31,8 +31,10 @@ function getSnapshot() {
   return state
 }
 
+const serverSnapshot: AuthState = { session: null, initialized: false }
+
 function getServerSnapshot(): AuthState {
-  return { session: null, initialized: false }
+  return serverSnapshot
 }
 
 export async function login(

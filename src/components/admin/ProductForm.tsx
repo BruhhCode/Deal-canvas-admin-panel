@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { FormField, inputClass, selectClass } from './FormField'
+import { FormField, errorMessage, inputClass, selectClass } from './FormField'
 import { CATEGORIES } from '@/types/catalog'
 import type { Brand, ProductWithOffers } from '@/types/catalog'
 import { createProduct, slugify, updateProduct } from '@/lib/data'
@@ -118,7 +118,7 @@ export function ProductForm({
       }
       onDone()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to save product.')
+      setError(errorMessage(err, 'Failed to save product.'))
     } finally {
       setSaving(false)
     }
