@@ -28,6 +28,7 @@
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tanstack/devtools-vite": "latest",
     "@tanstack/eslint-config": "latest",
     "@tanstack/router-cli": "^1.132.0",
@@ -35,7 +36,7 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
-    "eslint": "^9.20.0",
+    "eslint": "^10.10.0",
     "prettier": "^3.8.1",
     "typescript": "^6.0.2",
     "vite": "^8.0.0"
