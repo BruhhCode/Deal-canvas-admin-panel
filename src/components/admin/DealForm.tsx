@@ -4,6 +4,7 @@ import { NetworkSelect } from './NetworkSelect'
 import { CATEGORIES, NETWORKS } from '@/types/catalog'
 import type { Brand, Deal, DealStatus } from '@/types/catalog'
 import { createDeal, slugify, updateDeal } from '@/lib/data'
+import { fromUsd, toUsd } from '@/lib/currency'
 
 const STATUSES: DealStatus[] = ['ACTIVE', 'PAUSED', 'EXPIRED', 'UPCOMING']
 
@@ -41,8 +42,12 @@ export function DealForm({
     deal?.category ?? Object.keys(CATEGORIES)[0],
   )
   const [subcategory, setSubcategory] = useState(deal?.subcategory ?? '')
-  const [price, setPrice] = useState(deal?.price ?? 0)
-  const [originalPrice, setOriginalPrice] = useState(deal?.original_price ?? 0)
+  // deals.price/original_price are stored in the site's base unit (see
+  // @/lib/currency) — shown/edited here as real USD.
+  const [price, setPrice] = useState(deal ? toUsd(deal.price) : 0)
+  const [originalPrice, setOriginalPrice] = useState(
+    deal ? toUsd(deal.original_price) : 0,
+  )
   const [code, setCode] = useState(deal?.code ?? '')
   const [dealType, setDealType] = useState(deal?.deal_type ?? 'Store Sale')
   const [status, setStatus] = useState<DealStatus>(deal?.status ?? 'ACTIVE')
@@ -106,12 +111,11 @@ export function DealForm({
       title,
       slug,
       product,
-      product_id: deal?.product_id ?? null,
       brand,
       category,
       subcategory: subcategory.trim() || null,
-      price,
-      original_price: originalPrice,
+      price: fromUsd(price),
+      original_price: fromUsd(originalPrice),
       code: code.trim() || null,
       deal_type: dealType,
       status,

@@ -316,62 +316,110 @@ export async function deleteBrand(slug: string): Promise<void> {
   await reload('brands')
 }
 
+// Inserts brands that don't exist yet, for the "Import feed" auto-create
+// flow. Ignores brands that already exist rather than erroring, since a
+// re-import of an overlapping feed shouldn't fail on duplicates.
+export async function bulkCreateBrands(inputs: BrandInput[]): Promise<void> {
+  if (!inputs.length) return
+  const { error } = await supabase
+    .from('brands')
+    .upsert(inputs, { onConflict: 'slug', ignoreDuplicates: true })
+  if (error) throw error
+  await reload('brands')
+}
+
 // ---------------------------------------------------------------------------
 // Products (+ nested offers)
 // ---------------------------------------------------------------------------
 
-export type OfferInput = Omit<Offer, 'id' | 'product_id'>
-export type ProductInput = Omit<Product, 'id'> & { offers: OfferInput[] }
+export type OfferInput = Omit<Offer, 'id' | 'product_slug'>
+export type ProductInput = Product & { offers: OfferInput[] }
 
 export async function createProduct(input: ProductInput): Promise<void> {
   const { offers, ...fields } = input
-  const id = input.slug
-  const { error: productError } = await supabase
-    .from('products')
-    .insert({ id, ...fields })
+  const { error: productError } = await supabase.from('products').insert(fields)
   if (productError) throw productError
   if (offers.length) {
     const { error: offerError } = await supabase
       .from('offers')
-      .insert(offers.map((o) => ({ ...o, product_id: id })))
+      .insert(offers.map((o) => ({ ...o, product_slug: fields.slug })))
     if (offerError) throw offerError
   }
   await reload('products')
 }
 
 export async function updateProduct(
-  id: string,
+  slug: string,
   patch: Partial<ProductInput>,
 ): Promise<void> {
   const { offers, ...fields } = patch
-  if (Object.keys(fields).length) {
-    const { error } = await supabase
-      .from('products')
-      .update(fields)
-      .eq('id', id)
-    if (error) throw error
-  }
+  const targetSlug = fields.slug ?? slug
+
+  // `slug` is the products PK and offers reference it via product_slug with
+  // no ON UPDATE CASCADE, so renaming the product while its offers still
+  // point at the old slug violates the FK. Offers must be detached first,
+  // the product renamed second, then the offers re-inserted against the new
+  // slug — every caller (ProductForm) always sends the full offers array on
+  // every save, so this ordering covers both the rename and non-rename case.
   if (offers) {
     const { error: deleteError } = await supabase
       .from('offers')
       .delete()
-      .eq('product_id', id)
+      .eq('product_slug', slug)
     if (deleteError) throw deleteError
-    if (offers.length) {
-      const { error: insertError } = await supabase
-        .from('offers')
-        .insert(offers.map((o) => ({ ...o, product_id: id })))
-      if (insertError) throw insertError
-    }
+  }
+
+  if (Object.keys(fields).length) {
+    const { error } = await supabase
+      .from('products')
+      .update(fields)
+      .eq('slug', slug)
+    if (error) throw error
+  }
+
+  if (offers && offers.length) {
+    const { error: insertError } = await supabase
+      .from('offers')
+      .insert(offers.map((o) => ({ ...o, product_slug: targetSlug })))
+    if (insertError) throw insertError
   }
   await reload('products')
 }
 
-export async function deleteProduct(id: string): Promise<void> {
-  await supabase.from('offers').delete().eq('product_id', id)
-  const { error } = await supabase.from('products').delete().eq('id', id)
+export async function deleteProduct(slug: string): Promise<void> {
+  await supabase.from('offers').delete().eq('product_slug', slug)
+  const { error } = await supabase.from('products').delete().eq('slug', slug)
   if (error) throw error
   await reload('products')
+}
+
+// Bulk-creates products (+ their offers) in batches, for the "Import feed"
+// flow. Existing products with the same slug are left untouched (use
+// updateProduct for those).
+export async function bulkImportProducts(
+  products: ProductInput[],
+  batchSize = 500,
+): Promise<{ productCount: number; offerCount: number }> {
+  const productRows = products.map(({ offers: _offers, ...fields }) => fields)
+  const offerRows = products.flatMap((p) =>
+    p.offers.map((o) => ({ ...o, product_slug: p.slug })),
+  )
+
+  for (let i = 0; i < productRows.length; i += batchSize) {
+    const { error } = await supabase
+      .from('products')
+      .insert(productRows.slice(i, i + batchSize))
+    if (error) throw error
+  }
+  for (let i = 0; i < offerRows.length; i += batchSize) {
+    const { error } = await supabase
+      .from('offers')
+      .insert(offerRows.slice(i, i + batchSize))
+    if (error) throw error
+  }
+
+  await reload('products')
+  return { productCount: productRows.length, offerCount: offerRows.length }
 }
 
 // ---------------------------------------------------------------------------
@@ -397,6 +445,16 @@ export async function updateStore(
 
 export async function deleteStore(slug: string): Promise<void> {
   const { error } = await supabase.from('stores').delete().eq('slug', slug)
+  if (error) throw error
+  await reload('stores')
+}
+
+// See bulkCreateBrands — same "insert if missing" behavior for stores.
+export async function bulkCreateStores(inputs: StoreInput[]): Promise<void> {
+  if (!inputs.length) return
+  const { error } = await supabase
+    .from('stores')
+    .upsert(inputs, { onConflict: 'slug', ignoreDuplicates: true })
   if (error) throw error
   await reload('stores')
 }

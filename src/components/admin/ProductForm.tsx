@@ -4,6 +4,7 @@ import { CATEGORIES } from '@/types/catalog'
 import type { Brand, ProductWithOffers } from '@/types/catalog'
 import { createProduct, slugify, updateProduct } from '@/lib/data'
 import type { OfferInput } from '@/lib/data'
+import { fromUsd, toUsd } from '@/lib/currency'
 
 const AVAILABILITY = ['IN STOCK', 'LOW STOCK', 'OUT OF STOCK']
 
@@ -63,7 +64,12 @@ export function ProductForm({
   const [newIn, setNewIn] = useState(product?.new_in ?? false)
   const [offers, setOffers] = useState<OfferInput[]>(
     product?.offers.length
-      ? product.offers.map(({ id: _id, product_id: _pid, ...rest }) => rest)
+      ? product.offers.map(({ id: _id, product_slug: _ps, ...rest }) => ({
+          ...rest,
+          // Stored in the site's base unit (see @/lib/currency) — shown/edited as real USD.
+          price: toUsd(rest.price),
+          original_price: toUsd(rest.original_price),
+        }))
       : [emptyOffer()],
   )
   const [saving, setSaving] = useState(false)
@@ -79,9 +85,15 @@ export function ProductForm({
     e.preventDefault()
     setError(null)
 
-    const cleanOffers = offers.filter(
-      (o) => o.store && o.price > 0 && o.product_url,
-    )
+    const cleanOffers = offers
+      .filter((o) => o.store && o.price > 0 && o.product_url)
+      // Convert the USD amounts entered in the form back to the site's
+      // stored base unit (see @/lib/currency) before writing to Supabase.
+      .map((o) => ({
+        ...o,
+        price: fromUsd(o.price),
+        original_price: fromUsd(o.original_price),
+      }))
     if (!name.trim() || !slug.trim() || !brand || cleanOffers.length === 0) {
       setError(
         'Name, slug, brand and at least one valid offer (store, price, URL) are required.',
@@ -92,13 +104,14 @@ export function ProductForm({
     const input = {
       name,
       slug,
+      source_id: product?.source_id ?? slug,
       brand,
       category,
       subcategory,
       gender,
       description,
       image,
-      images: images.trim() ? textToList(images) : null,
+      images: textToList(images),
       colors: textToList(colors),
       sizes: textToList(sizes),
       tags: textToList(tags),
@@ -112,7 +125,7 @@ export function ProductForm({
     setSaving(true)
     try {
       if (product) {
-        await updateProduct(product.id, input)
+        await updateProduct(product.slug, input)
       } else {
         await createProduct(input)
       }
@@ -193,7 +206,7 @@ export function ProductForm({
             value={gender}
             onChange={(e) => setGender(e.target.value)}
           >
-            {['men', 'women', 'unisex', 'kids'].map((g) => (
+            {['men', 'women', 'unisex'].map((g) => (
               <option key={g} value={g}>
                 {g}
               </option>

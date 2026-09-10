@@ -24,7 +24,7 @@ export function SaleEventForm({
 }) {
   const [title, setTitle] = useState(event?.title ?? '')
   const [timeWindow, setTimeWindow] = useState<SaleTimeWindow>(
-    (event?.time_window ?? 'today') as SaleTimeWindow,
+    (event?.window ?? 'today') as SaleTimeWindow,
   )
   const [discount, setDiscount] = useState(event?.discount ?? '')
   const [code, setCode] = useState(event?.code ?? '')
@@ -44,7 +44,7 @@ export function SaleEventForm({
 
     const input = {
       title,
-      time_window: timeWindow,
+      window: timeWindow,
       discount,
       code: code.trim() || null,
       store,

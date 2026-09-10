@@ -4,8 +4,9 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ProductForm } from '@/components/admin/ProductForm'
+import { ImportFeedModal } from '@/components/admin/ImportFeedModal'
 import { errorMessage } from '@/components/admin/FormField'
-import { useCurrency } from '@/lib/currency'
+import { toUsd, useCurrency } from '@/lib/currency'
 import {
   bestOffer,
   brandName,
@@ -33,6 +34,7 @@ function ProductsTab() {
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<ProductWithOffers | 'new' | null>(null)
   const [deleting, setDeleting] = useState<ProductWithOffers | null>(null)
+  const [importing, setImporting] = useState(false)
 
   const rows = useMemo(
     () =>
@@ -65,17 +67,21 @@ function ProductsTab() {
           >
             Add product
           </button>
-          {['Import feed', 'Bulk update'].map((a) => (
-            <button
-              key={a}
-              type="button"
-              disabled
-              title="Not available yet"
-              className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] opacity-50"
-            >
-              {a}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => setImporting(true)}
+            className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] hover:border-clay"
+          >
+            Import feed
+          </button>
+          <button
+            type="button"
+            disabled
+            title="Not available yet"
+            className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] opacity-50"
+          >
+            Bulk update
+          </button>
         </div>
       </div>
 
@@ -103,13 +109,13 @@ function ProductsTab() {
             {rows.map((p) => {
               const best = bestOffer(p)
               return (
-                <tr key={p.id}>
+                <tr key={p.slug}>
                   <td className="px-4 py-3">{p.name}</td>
                   <td className="px-4 py-3">{brandName(brands, p.brand)}</td>
                   <td className="px-4 py-3">{categoryName(p.category)}</td>
                   <td className="px-4 py-3">{p.offers.length}</td>
                   <td className="px-4 py-3">
-                    {best ? format(best.price) : '—'}
+                    {best ? format(toUsd(best.price)) : '—'}
                   </td>
                   <td className="px-4 py-3">{productDiscount(p)}%</td>
                   <td className="px-4 py-3 text-muted-foreground">
@@ -169,6 +175,17 @@ function ProductsTab() {
         </Modal>
       ) : null}
 
+      {importing ? (
+        <Modal title="Import product feed" onClose={() => setImporting(false)}>
+          <ImportFeedModal
+            brands={brands}
+            stores={stores}
+            onDone={() => setImporting(false)}
+            onCancel={() => setImporting(false)}
+          />
+        </Modal>
+      ) : null}
+
       {deleting ? (
         <ConfirmDialog
           title="Delete product"
@@ -176,7 +193,7 @@ function ProductsTab() {
           onCancel={() => setDeleting(null)}
           onConfirm={async () => {
             try {
-              await deleteProduct(deleting.id)
+              await deleteProduct(deleting.slug)
               setDeleting(null)
             } catch (err) {
               window.alert(errorMessage(err, 'Failed to delete product.'))

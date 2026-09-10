@@ -1,6 +1,6 @@
 export type Offer = {
   id: string // uuid
-  product_id: string
+  product_slug: string // Product["slug"]
   store: string // Store["slug"]
   price: number
   original_price: number
@@ -13,9 +13,11 @@ export type Offer = {
   sponsored: boolean
 }
 
+// `slug` is the primary key — the main site's own import script (which now
+// owns this table's schema) has no separate synthetic id column.
 export type Product = {
-  id: string
   slug: string
+  source_id: string
   name: string
   brand: string // Brand["slug"]
   category: string
@@ -23,7 +25,7 @@ export type Product = {
   gender: string
   description: string
   image: string
-  images: string[] | null
+  images: string[]
   colors: string[]
   sizes: string[]
   tags: string[]
@@ -66,7 +68,6 @@ export type Deal = {
   slug: string
   title: string
   product: string // display name shown in the table
-  product_id: string | null // Product["id"], optional link
   brand: string // Brand["slug"]
   category: string
   subcategory: string | null
@@ -112,7 +113,7 @@ export type SaleEvent = {
   store: string // Store["slug"]
   title: string
   discount: string
-  time_window: SaleTimeWindow | string
+  window: SaleTimeWindow | string
   detail: string
   code: string | null
 }

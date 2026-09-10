@@ -5,7 +5,7 @@ import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DealForm } from '@/components/admin/DealForm'
 import { errorMessage, runAction } from '@/components/admin/FormField'
-import { useCurrency } from '@/lib/currency'
+import { toUsd, useCurrency } from '@/lib/currency'
 import {
   brandName,
   deleteDeal,
@@ -95,7 +95,7 @@ function DealsTab() {
                 <td className="px-4 py-3">{d.product}</td>
                 <td className="px-4 py-3">{brandName(brands, d.brand)}</td>
                 <td className="px-4 py-3 whitespace-nowrap">
-                  {format(d.price)}
+                  {format(toUsd(d.price))}
                 </td>
                 <td className="px-4 py-3">{discountPct(d)}%</td>
                 <td className="px-4 py-3 font-mono text-xs">{d.code ?? '—'}</td>

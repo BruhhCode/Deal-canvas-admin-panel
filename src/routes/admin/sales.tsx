@@ -41,7 +41,7 @@ function SalesTab() {
         {saleEvents.map((e) => (
           <div key={e.id} className="rounded-lg border bg-card p-5">
             <p className="editorial-eyebrow">
-              {e.time_window.replace('-', ' ')}
+              {e.window.replace('-', ' ')}
             </p>
             <h3 className="mt-2 text-lg">{e.title}</h3>
             <p className="mt-1 text-sm text-clay">{e.discount}</p>
