@@ -69,13 +69,25 @@ function set(patch: Partial<DB>) {
 // Fetchers — one per table
 // ---------------------------------------------------------------------------
 
+// PostgREST caps an unbounded select at its configured max-rows (1000 on
+// this project) instead of erroring — with 1300+ products, a plain select
+// silently dropped everything past the cap, so the dashboard couldn't see
+// or edit roughly the last third of the catalog. Must be paged.
+const PRODUCTS_PAGE_SIZE = 1000
+
 async function fetchProducts(): Promise<ProductWithOffers[]> {
-  const { data, error } = await supabase
-    .from('products')
-    .select('*, offers(*)')
-    .order('name')
-  if (error) throw error
-  return data as ProductWithOffers[]
+  const rows: ProductWithOffers[] = []
+  for (let from = 0; ; from += PRODUCTS_PAGE_SIZE) {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*, offers(*)')
+      .order('name')
+      .range(from, from + PRODUCTS_PAGE_SIZE - 1)
+    if (error) throw error
+    rows.push(...(data as ProductWithOffers[]))
+    if (!data || data.length < PRODUCTS_PAGE_SIZE) break
+  }
+  return rows
 }
 
 async function fetchBrands(): Promise<Brand[]> {
