@@ -31,6 +31,19 @@ const textToList = (text: string) =>
     .map((s) => s.trim())
     .filter(Boolean)
 
+// Image URLs can't safely go through the comma-separated helpers above: Nike/
+// Adidas CDN URLs embed their own transform params with commas in the URL
+// itself (e.g. ".../f_auto,c_scale,w_1.0,.../shoe.png"), so splitting on every
+// comma shreds a single URL into several broken fragments. URLs essentially
+// never contain newlines, so one-per-line is used for this field instead.
+const listToLines = (list: string[] | null | undefined) =>
+  (list ?? []).join('\n')
+const linesToList = (text: string) =>
+  text
+    .split('\n')
+    .map((s) => s.trim())
+    .filter(Boolean)
+
 export function ProductForm({
   product,
   brands,
@@ -54,7 +67,7 @@ export function ProductForm({
   const [gender, setGender] = useState(product?.gender ?? 'unisex')
   const [description, setDescription] = useState(product?.description ?? '')
   const [image, setImage] = useState(product?.image ?? '')
-  const [images, setImages] = useState(listToText(product?.images))
+  const [images, setImages] = useState(listToLines(product?.images))
   const [colors, setColors] = useState(listToText(product?.colors))
   const [sizes, setSizes] = useState(listToText(product?.sizes))
   const [tags, setTags] = useState(listToText(product?.tags))
@@ -111,7 +124,7 @@ export function ProductForm({
       gender,
       description,
       image,
-      images: textToList(images),
+      images: linesToList(images),
       colors: textToList(colors),
       sizes: textToList(sizes),
       tags: textToList(tags),
@@ -233,11 +246,12 @@ export function ProductForm({
         />
       </FormField>
 
-      <FormField label="Additional image URLs (comma-separated, optional)">
-        <input
-          className={inputClass}
+      <FormField label="Additional image URLs (one per line, optional)">
+        <textarea
+          className={`${inputClass} min-h-20 resize-y`}
           value={images}
           onChange={(e) => setImages(e.target.value)}
+          placeholder={'https://example.com/image-1.jpg\nhttps://example.com/image-2.jpg'}
         />
       </FormField>
 
