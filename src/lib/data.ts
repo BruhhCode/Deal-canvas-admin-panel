@@ -405,9 +405,15 @@ export async function deleteProduct(slug: string): Promise<void> {
   await reload('products')
 }
 
-// Bulk-creates products (+ their offers) in batches, for the "Import feed"
-// flow. Existing products with the same slug are left untouched (use
-// updateProduct for those).
+// Bulk-creates OR updates products (+ their offers) in batches, for the
+// "Import feed" flow — doubles as bulk update: re-importing a CSV containing
+// a product_url you already imported before (same auto-derived slug) updates
+// that product in place rather than erroring. A plain `insert()` would hit a
+// duplicate-key violation on `products.slug` and abort the whole batch, so
+// this upserts on slug instead — same idea as updateProduct's offer-replace
+// pattern (offers have no natural unique key / nothing to upsert on, so
+// every offer for a re-imported product is deleted and reinserted fresh
+// rather than merged field-by-field).
 export async function bulkImportProducts(
   products: ProductInput[],
   batchSize = 500,
@@ -416,11 +422,19 @@ export async function bulkImportProducts(
   const offerRows = products.flatMap((p) =>
     p.offers.map((o) => ({ ...o, product_slug: p.slug })),
   )
+  const slugs = products.map((p) => p.slug)
 
   for (let i = 0; i < productRows.length; i += batchSize) {
     const { error } = await supabase
       .from('products')
-      .insert(productRows.slice(i, i + batchSize))
+      .upsert(productRows.slice(i, i + batchSize), { onConflict: 'slug' })
+    if (error) throw error
+  }
+  for (let i = 0; i < slugs.length; i += batchSize) {
+    const { error } = await supabase
+      .from('offers')
+      .delete()
+      .in('product_slug', slugs.slice(i, i + batchSize))
     if (error) throw error
   }
   for (let i = 0; i < offerRows.length; i += batchSize) {

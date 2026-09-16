@@ -70,17 +70,10 @@ function ProductsTab() {
           <button
             type="button"
             onClick={() => setImporting(true)}
+            title="Also updates existing products — re-import a CSV containing a product you already added and it's updated in place, not duplicated"
             className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] hover:border-clay"
           >
-            Import feed
-          </button>
-          <button
-            type="button"
-            disabled
-            title="Not available yet"
-            className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] opacity-50"
-          >
-            Bulk update
+            Import / bulk update
           </button>
         </div>
       </div>

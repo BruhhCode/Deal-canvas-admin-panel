@@ -1,0 +1,4 @@
+product_name,brand_slug,category_slug,subcategory,gender,store_slug,price,original_price,availability,product_url,image_url,images
+Adizero EVO SL Shoes,adidas,shoes,Running,men,adidas-store,150,180,IN STOCK,https://www.adidas.com/us/adizero-evo-sl-shoes/JH6206.html,https://assets.adidas.com/images/w_600,f_auto,q_auto/main.jpg,https://assets.adidas.com/images/w_600,f_auto,q_auto/alt1.jpg;https://assets.adidas.com/images/w_600,f_auto,q_auto/alt2.jpg
+Air Jordan 3 Retro OG,jordan,shoes,Basketball,unisex,nike-store,210,210,LOW STOCK,https://www.nike.com/t/air-jordan-3-retro-og/CT8532-106,https://static.nike.com/a/images/t_default/main.png,
+ASYMMETRIC SLIT MAXI DRESS,zara,fashion,Dress,women,zara-store,59.90,59.90,IN STOCK,https://www.zara.com/us/en/asymmetric-long-dress-p01528811.html,https://static.zara.net/assets/public/main.jpg,https://static.zara.net/assets/public/alt1.jpg

@@ -27,6 +27,13 @@ const REQUIRED_COLUMNS = [
   'image_url',
 ]
 
+// Optional gallery images for the product detail page (image_url above is the
+// single image shown on cards/listings). Semicolon-separated, not comma —
+// image CDN URLs (Nike/Adidas etc.) embed commas in their own transform
+// params, so a comma-separated list would shred a URL that contains one
+// (see ProductForm.tsx's identical fix for the single-product form).
+const IMAGES_COLUMN = 'images'
+
 // Parses CSV honoring RFC4180 quoting: quoted fields may contain commas,
 // newlines and escaped ("") double quotes. A naive `line.split(',')` breaks
 // on real product feeds because image CDN URLs (e.g. `w_280,h_280,...`) and
@@ -213,7 +220,10 @@ function buildFeed(
       gender: normalizeGender(row.gender),
       description: `${row.product_name} from ${row.brand_slug}.`,
       image: row.image_url,
-      images: [],
+      images: (row[IMAGES_COLUMN] ?? '')
+        .split(';')
+        .map((s) => s.trim())
+        .filter(Boolean),
       colors: [],
       sizes: [],
       tags: [],
@@ -339,7 +349,16 @@ export function ImportFeedModal({
         Upload a CSV with columns:{' '}
         <code className="text-xs">{REQUIRED_COLUMNS.join(', ')}</code>. Rows
         sharing the same product URL are combined into one product with multiple
-        store offers.
+        store offers. An optional <code className="text-xs">images</code>{' '}
+        column adds gallery images to the product page — separate multiple
+        URLs with a semicolon (<code className="text-xs">;</code>), not a
+        comma, since image URLs often contain commas of their own.
+      </p>
+      <p className="text-sm text-muted-foreground">
+        Doubles as bulk update: a row whose <code className="text-xs">product_url</code>{' '}
+        matches a product you already imported updates it in place (name,
+        price, images, offers — everything is replaced with what's in this
+        file) instead of erroring or creating a duplicate.
       </p>
 
       <input
