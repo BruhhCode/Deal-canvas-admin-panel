@@ -28,10 +28,12 @@ const REQUIRED_COLUMNS = [
 ]
 
 // Optional gallery images for the product detail page (image_url above is the
-// single image shown on cards/listings). Semicolon-separated, not comma —
-// image CDN URLs (Nike/Adidas etc.) embed commas in their own transform
-// params, so a comma-separated list would shred a URL that contains one
-// (see ProductForm.tsx's identical fix for the single-product form).
+// single image shown on cards/listings). One URL per line within the cell,
+// not comma- or semicolon-separated — image CDN URLs (Nike/Adidas etc.)
+// embed commas in their own transform params, so any single-character
+// delimiter risks colliding with a real URL (see ProductForm.tsx's identical
+// fix for the single-product form). A multi-line cell needs to be quoted in
+// the CSV (standard RFC4180 quoting, which parseCsvRows already handles).
 const IMAGES_COLUMN = 'images'
 
 // Parses CSV honoring RFC4180 quoting: quoted fields may contain commas,
@@ -221,7 +223,7 @@ function buildFeed(
       description: `${row.product_name} from ${row.brand_slug}.`,
       image: row.image_url,
       images: (row[IMAGES_COLUMN] ?? '')
-        .split(';')
+        .split('\n')
         .map((s) => s.trim())
         .filter(Boolean),
       colors: [],
@@ -350,9 +352,10 @@ export function ImportFeedModal({
         <code className="text-xs">{REQUIRED_COLUMNS.join(', ')}</code>. Rows
         sharing the same product URL are combined into one product with multiple
         store offers. An optional <code className="text-xs">images</code>{' '}
-        column adds gallery images to the product page — separate multiple
-        URLs with a semicolon (<code className="text-xs">;</code>), not a
-        comma, since image URLs often contain commas of their own.
+        column adds gallery images to the product page — put one URL per
+        line in that cell (quote the cell in the CSV so the newlines survive),
+        not comma- or semicolon-separated, since image URLs often contain
+        commas of their own.
       </p>
       <p className="text-sm text-muted-foreground">
         Doubles as bulk update: a row whose <code className="text-xs">product_url</code>{' '}
