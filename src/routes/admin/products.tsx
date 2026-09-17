@@ -5,25 +5,36 @@ import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ProductForm } from '@/components/admin/ProductForm'
 import { ImportFeedModal } from '@/components/admin/ImportFeedModal'
-import { errorMessage } from '@/components/admin/FormField'
+import { StatusBadge } from '@/components/admin/StatusBadge'
+import { errorMessage, selectClass } from '@/components/admin/FormField'
 import { toUsd, useCurrency } from '@/lib/currency'
+import { timeAgo, useLiveNow } from '@/lib/time'
 import {
   bestOffer,
   brandName,
   deleteProduct,
-  freshnessLabel,
   productDiscount,
+  productLastUpdated,
+  productStatus,
   useBrands,
   useDataStatus,
   useProducts,
   useStores,
 } from '@/lib/data'
-import { categoryName } from '@/types/catalog'
+import { CATEGORIES, categoryName } from '@/types/catalog'
 import type { ProductWithOffers } from '@/types/catalog'
 
 export const Route = createFileRoute('/admin/products')({
   component: ProductsTab,
 })
+
+const SORTS = {
+  name: 'Name (A–Z)',
+  'price-asc': 'Price (low to high)',
+  'price-desc': 'Price (high to low)',
+  updated: 'Recently updated',
+} as const
+type SortKey = keyof typeof SORTS
 
 function ProductsTab() {
   const products = useProducts()
@@ -31,33 +42,94 @@ function ProductsTab() {
   const stores = useStores()
   const { loaded, error } = useDataStatus()
   const { format } = useCurrency()
+  useLiveNow() // re-render periodically so "Last updated" cells stay current
   const [q, setQ] = useState('')
+  const [category, setCategory] = useState('')
+  const [brand, setBrand] = useState('')
+  const [sort, setSort] = useState<SortKey>('name')
   const [editing, setEditing] = useState<ProductWithOffers | 'new' | null>(null)
   const [deleting, setDeleting] = useState<ProductWithOffers | null>(null)
   const [importing, setImporting] = useState(false)
 
-  const rows = useMemo(
-    () =>
-      products
-        .filter((p) =>
-          (p.name + brandName(brands, p.brand))
-            .toLowerCase()
-            .includes(q.toLowerCase()),
-        )
-        .slice(0, 30),
-    [products, brands, q],
-  )
+  const rows = useMemo(() => {
+    const filtered = products.filter((p) => {
+      if (category && p.category !== category) return false
+      if (brand && p.brand !== brand) return false
+      if (
+        q &&
+        !(p.name + brandName(brands, p.brand)).toLowerCase().includes(q.toLowerCase())
+      )
+        return false
+      return true
+    })
+
+    const sorted = [...filtered].sort((a, b) => {
+      switch (sort) {
+        case 'price-asc':
+          return (bestOffer(a)?.price ?? Infinity) - (bestOffer(b)?.price ?? Infinity)
+        case 'price-desc':
+          return (bestOffer(b)?.price ?? -Infinity) - (bestOffer(a)?.price ?? -Infinity)
+        case 'updated':
+          return (productLastUpdated(b) ?? '').localeCompare(productLastUpdated(a) ?? '')
+        case 'name':
+        default:
+          return a.name.localeCompare(b.name)
+      }
+    })
+
+    return sorted.slice(0, 30)
+  }, [products, brands, q, category, brand, sort])
 
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Search products..."
-          aria-label="Search products"
-          className="w-full max-w-sm rounded-sm border bg-card px-3 py-2 text-sm outline-none focus:border-clay"
-        />
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search products..."
+            aria-label="Search products"
+            className="w-full max-w-sm rounded-sm border bg-card px-3 py-2 text-sm outline-none focus:border-clay"
+          />
+          <select
+            aria-label="Filter by category"
+            className={selectClass}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">All categories</option>
+            {Object.entries(CATEGORIES).map(([slug, name]) => (
+              <option key={slug} value={slug}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by brand"
+            className={selectClass}
+            value={brand}
+            onChange={(e) => setBrand(e.target.value)}
+          >
+            <option value="">All brands</option>
+            {brands.map((b) => (
+              <option key={b.slug} value={b.slug}>
+                {b.name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Sort products"
+            className={selectClass}
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+          >
+            {Object.entries(SORTS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
@@ -85,7 +157,7 @@ function ProductsTab() {
       ) : null}
 
       <div className="overflow-x-auto rounded-lg border">
-        <table className="w-full min-w-[940px] text-left text-sm">
+        <table className="w-full min-w-[1040px] text-left text-sm">
           <thead className="bg-cream text-xs uppercase tracking-[0.14em] text-muted-foreground">
             <tr>
               <th className="px-4 py-3">Product</th>
@@ -94,7 +166,8 @@ function ProductsTab() {
               <th className="px-4 py-3">Stores</th>
               <th className="px-4 py-3">Best price</th>
               <th className="px-4 py-3">Discount</th>
-              <th className="px-4 py-3">Freshness</th>
+              <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Last updated</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -111,8 +184,11 @@ function ProductsTab() {
                     {best ? format(toUsd(best.price)) : '—'}
                   </td>
                   <td className="px-4 py-3">{productDiscount(p)}%</td>
+                  <td className="px-4 py-3">
+                    <StatusBadge status={productStatus(p)} />
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {freshnessLabel(p)}
+                    {timeAgo(productLastUpdated(p))}
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex gap-2">
@@ -140,7 +216,7 @@ function ProductsTab() {
             {rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={8}
+                  colSpan={9}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   {loaded

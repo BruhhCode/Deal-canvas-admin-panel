@@ -6,6 +6,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DealForm } from '@/components/admin/DealForm'
 import { errorMessage, runAction } from '@/components/admin/FormField'
 import { toUsd, useCurrency } from '@/lib/currency'
+import { timeAgo, useLiveNow } from '@/lib/time'
 import {
   brandName,
   deleteDeal,
@@ -26,6 +27,7 @@ function DealsTab() {
   const brands = useBrands()
   const { loaded } = useDataStatus()
   const { format } = useCurrency()
+  useLiveNow() // re-render periodically so "Last updated" cells stay current
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Deal | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Deal | null>(null)
@@ -86,6 +88,7 @@ function DealsTab() {
               <th className="px-4 py-3">Network</th>
               <th className="px-4 py-3">Clicks</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Last updated</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -105,6 +108,9 @@ function DealsTab() {
                 </td>
                 <td className="px-4 py-3">
                   <DealBadge badge={d.status} />
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {timeAgo(d.updated_at)}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.1em]">
@@ -145,7 +151,7 @@ function DealsTab() {
             {rows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={9}
+                  colSpan={10}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   {loaded ? 'No deals match your search.' : 'Loading deals...'}

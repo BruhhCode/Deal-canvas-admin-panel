@@ -11,6 +11,7 @@ export type Offer = {
   shipping: string
   updated_hours_ago: number
   sponsored: boolean
+  updated_at: string
 }
 
 // `slug` is the primary key — the main site's own import script (which now
@@ -33,6 +34,7 @@ export type Product = {
   reviews: number
   views: number
   new_in: boolean
+  updated_at: string
 }
 
 export type ProductWithOffers = Product & { offers: Offer[] }
@@ -44,6 +46,7 @@ export type Brand = {
   category: string | null
   network: string
   featured: boolean
+  updated_at: string
 }
 
 export type Store = {
@@ -59,6 +62,7 @@ export type Store = {
   store_wide_offer: string | null
   featured: boolean
   sponsored: boolean
+  updated_at: string
 }
 
 export type DealStatus = 'ACTIVE' | 'PAUSED' | 'EXPIRED' | 'UPCOMING'
@@ -91,6 +95,7 @@ export type Deal = {
   featured: boolean
   flash: boolean
   sponsored: boolean
+  updated_at: string
 }
 
 export type Coupon = {
@@ -116,6 +121,7 @@ export type SaleEvent = {
   window: SaleTimeWindow | string
   detail: string
   code: string | null
+  updated_at: string
 }
 
 // Networks are never stored directly — always derived from Deal.network.

@@ -3,9 +3,12 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { SaleEventForm } from '@/components/admin/SaleEventForm'
+import { StatusBadge } from '@/components/admin/StatusBadge'
 import { errorMessage } from '@/components/admin/FormField'
+import { timeAgo, useLiveNow } from '@/lib/time'
 import {
   deleteSaleEvent,
+  saleEventStatus,
   storeName,
   useDataStatus,
   useSaleEvents,
@@ -21,6 +24,7 @@ function SalesTab() {
   const saleEvents = useSaleEvents()
   const stores = useStores()
   const { loaded } = useDataStatus()
+  useLiveNow() // re-render periodically so "Last updated" labels stay current
   const [editing, setEditing] = useState<SaleEvent | 'new' | null>(null)
   const [deleting, setDeleting] = useState<SaleEvent | null>(null)
 
@@ -40,14 +44,20 @@ function SalesTab() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {saleEvents.map((e) => (
           <div key={e.id} className="rounded-lg border bg-card p-5">
-            <p className="editorial-eyebrow">
-              {e.window.replace('-', ' ')}
-            </p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="editorial-eyebrow">
+                {e.window.replace('-', ' ')}
+              </p>
+              <StatusBadge status={saleEventStatus(e)} />
+            </div>
             <h3 className="mt-2 text-lg">{e.title}</h3>
             <p className="mt-1 text-sm text-clay">{e.discount}</p>
             <p className="mt-2 text-xs text-muted-foreground">
               {e.code ? `Code ${e.code} · ` : ''}store{' '}
               {storeName(stores, e.store)}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Updated {timeAgo(e.updated_at)}
             </p>
             <div className="mt-4 flex gap-2">
               <button

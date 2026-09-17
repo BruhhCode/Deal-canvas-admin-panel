@@ -65,6 +65,20 @@ function set(patch: Partial<DB>) {
   notify()
 }
 
+// Postgres RLS silently matches zero rows on a blocked UPDATE (no error,
+// unlike INSERT's explicit violation) — so a permission problem (e.g. an
+// expired session, or an RLS policy change) would otherwise look exactly
+// like a successful save that quietly changed nothing. Every update*
+// function below asks Supabase to return the updated row(s) and checks it
+// actually got at least one, rather than trusting a null `error` alone.
+function assertRowsUpdated(rows: unknown[] | null, label: string): void {
+  if (!rows || rows.length === 0) {
+    throw new Error(
+      `${label} update didn't apply — you may need to sign in again.`,
+    )
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Fetchers — one per table
 // ---------------------------------------------------------------------------
@@ -286,12 +300,70 @@ export function productsByStore(
   return products.filter((p) => p.offers.some((o) => o.store === slug))
 }
 
-export function freshnessLabel(product: ProductWithOffers): string {
-  if (!product.offers.length) return '—'
-  const hours = Math.min(...product.offers.map((o) => o.updated_hours_ago))
-  if (hours < 1) return 'Just now'
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
+// Real "last touched" time for a product: the most recent of the product
+// row's own updated_at and every one of its offers' updated_at (editing an
+// offer's price without touching the product row should still count as an
+// update to "the product" from an admin's point of view). Superseded the old
+// `updated_hours_ago`-based freshnessLabel, which read a plain number typed
+// by hand into a form (always 0 on a new/imported row) rather than a real
+// timestamp — it never changed on its own, which is why it always looked
+// like "1h ago" or "Just now" regardless of when anything actually happened.
+export function productLastUpdated(product: ProductWithOffers): string | null {
+  const stamps = [product.updated_at, ...product.offers.map((o) => o.updated_at)].filter(
+    Boolean,
+  )
+  if (!stamps.length) return null
+  return stamps.reduce((latest, s) => (s > latest ? s : latest))
+}
+
+export type ProductStatus = 'ACTIVE' | 'LOW STOCK' | 'OUT OF STOCK'
+
+// Derived, not stored: a product has no status column of its own, but a
+// shopper-facing notion of "active" falls straight out of whether any store
+// still has it in stock.
+export function productStatus(product: ProductWithOffers): ProductStatus {
+  if (!product.offers.length) return 'OUT OF STOCK'
+  if (product.offers.some((o) => o.availability === 'IN STOCK')) return 'ACTIVE'
+  if (product.offers.some((o) => o.availability === 'LOW STOCK')) return 'LOW STOCK'
+  return 'OUT OF STOCK'
+}
+
+// Stores don't carry a stock/availability concept of their own — "active"
+// falls out of whether the store still has any product actually in stock
+// anywhere, same idea as productStatus above.
+export function storeStatus(
+  store: Store,
+  products: ProductWithOffers[],
+): ProductStatus {
+  const own = productsByStore(products, store.slug)
+  if (!own.length) return 'OUT OF STOCK'
+  if (own.some((p) => p.offers.some((o) => o.availability === 'IN STOCK')))
+    return 'ACTIVE'
+  if (own.some((p) => p.offers.some((o) => o.availability === 'LOW STOCK')))
+    return 'LOW STOCK'
+  return 'OUT OF STOCK'
+}
+
+// Sale events have no stored expiry timestamp, only a relative category
+// (`window`) set by whoever last saved it — so "expired" is approximated as
+// that window having elapsed since the row was last touched (e.g. a "today"
+// sale not edited since yesterday or earlier no longer means today). This is
+// a heuristic, not authoritative data — there's no absolute end-date column
+// to check it against.
+const WINDOW_SPAN_HOURS: Record<string, number> = {
+  today: 24,
+  tomorrow: 48,
+  'this-week': 24 * 7,
+  'next-week': 24 * 14,
+  'this-month': 24 * 30,
+}
+
+export function saleEventStatus(event: SaleEvent): 'ACTIVE' | 'EXPIRED' {
+  const span = WINDOW_SPAN_HOURS[event.window] ?? 24 * 7
+  const updated = new Date(event.updated_at).getTime()
+  if (Number.isNaN(updated)) return 'ACTIVE'
+  const expiresAt = updated + span * 60 * 60 * 1000
+  return Date.now() > expiresAt ? 'EXPIRED' : 'ACTIVE'
 }
 
 export function slugify(s: string): string {
@@ -305,10 +377,12 @@ export function slugify(s: string): string {
 // Brands
 // ---------------------------------------------------------------------------
 
-export type BrandInput = Brand
+export type BrandInput = Omit<Brand, 'updated_at'>
 
 export async function createBrand(input: BrandInput): Promise<void> {
-  const { error } = await supabase.from('brands').insert(input)
+  const { error } = await supabase
+    .from('brands')
+    .insert({ ...input, updated_at: new Date().toISOString() })
   if (error) throw error
   await reload('brands')
 }
@@ -317,8 +391,15 @@ export async function updateBrand(
   slug: string,
   patch: Partial<BrandInput>,
 ): Promise<void> {
-  const { error } = await supabase.from('brands').update(patch).eq('slug', slug)
+  // No DB trigger bumps updated_at on UPDATE (see time.ts) — every write here
+  // must set it itself, or "last updated" would stay frozen at creation time.
+  const { data, error } = await supabase
+    .from('brands')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('slug', slug)
+    .select('slug')
   if (error) throw error
+  assertRowsUpdated(data, 'Brand')
   await reload('brands')
 }
 
@@ -333,9 +414,13 @@ export async function deleteBrand(slug: string): Promise<void> {
 // re-import of an overlapping feed shouldn't fail on duplicates.
 export async function bulkCreateBrands(inputs: BrandInput[]): Promise<void> {
   if (!inputs.length) return
+  const now = new Date().toISOString()
   const { error } = await supabase
     .from('brands')
-    .upsert(inputs, { onConflict: 'slug', ignoreDuplicates: true })
+    .upsert(
+      inputs.map((b) => ({ ...b, updated_at: now })),
+      { onConflict: 'slug', ignoreDuplicates: true },
+    )
   if (error) throw error
   await reload('brands')
 }
@@ -344,17 +429,20 @@ export async function bulkCreateBrands(inputs: BrandInput[]): Promise<void> {
 // Products (+ nested offers)
 // ---------------------------------------------------------------------------
 
-export type OfferInput = Omit<Offer, 'id' | 'product_slug'>
-export type ProductInput = Product & { offers: OfferInput[] }
+export type OfferInput = Omit<Offer, 'id' | 'product_slug' | 'updated_at'>
+export type ProductInput = Omit<Product, 'updated_at'> & { offers: OfferInput[] }
 
 export async function createProduct(input: ProductInput): Promise<void> {
   const { offers, ...fields } = input
-  const { error: productError } = await supabase.from('products').insert(fields)
+  const now = new Date().toISOString()
+  const { error: productError } = await supabase
+    .from('products')
+    .insert({ ...fields, updated_at: now })
   if (productError) throw productError
   if (offers.length) {
     const { error: offerError } = await supabase
       .from('offers')
-      .insert(offers.map((o) => ({ ...o, product_slug: fields.slug })))
+      .insert(offers.map((o) => ({ ...o, product_slug: fields.slug, updated_at: now })))
     if (offerError) throw offerError
   }
   await reload('products')
@@ -366,6 +454,7 @@ export async function updateProduct(
 ): Promise<void> {
   const { offers, ...fields } = patch
   const targetSlug = fields.slug ?? slug
+  const now = new Date().toISOString()
 
   // `slug` is the products PK and offers reference it via product_slug with
   // no ON UPDATE CASCADE, so renaming the product while its offers still
@@ -382,17 +471,21 @@ export async function updateProduct(
   }
 
   if (Object.keys(fields).length) {
-    const { error } = await supabase
+    // No DB trigger bumps updated_at on UPDATE (see time.ts) — must set it
+    // explicitly, or "last updated" would stay frozen at creation time.
+    const { data, error } = await supabase
       .from('products')
-      .update(fields)
+      .update({ ...fields, updated_at: now })
       .eq('slug', slug)
+      .select('slug')
     if (error) throw error
+    assertRowsUpdated(data, 'Product')
   }
 
   if (offers && offers.length) {
     const { error: insertError } = await supabase
       .from('offers')
-      .insert(offers.map((o) => ({ ...o, product_slug: targetSlug })))
+      .insert(offers.map((o) => ({ ...o, product_slug: targetSlug, updated_at: now })))
     if (insertError) throw insertError
   }
   await reload('products')
@@ -418,9 +511,13 @@ export async function bulkImportProducts(
   products: ProductInput[],
   batchSize = 500,
 ): Promise<{ productCount: number; offerCount: number }> {
-  const productRows = products.map(({ offers: _offers, ...fields }) => fields)
+  const now = new Date().toISOString()
+  const productRows = products.map(({ offers: _offers, ...fields }) => ({
+    ...fields,
+    updated_at: now,
+  }))
   const offerRows = products.flatMap((p) =>
-    p.offers.map((o) => ({ ...o, product_slug: p.slug })),
+    p.offers.map((o) => ({ ...o, product_slug: p.slug, updated_at: now })),
   )
   const slugs = products.map((p) => p.slug)
 
@@ -452,10 +549,12 @@ export async function bulkImportProducts(
 // Stores
 // ---------------------------------------------------------------------------
 
-export type StoreInput = Store
+export type StoreInput = Omit<Store, 'updated_at'>
 
 export async function createStore(input: StoreInput): Promise<void> {
-  const { error } = await supabase.from('stores').insert(input)
+  const { error } = await supabase
+    .from('stores')
+    .insert({ ...input, updated_at: new Date().toISOString() })
   if (error) throw error
   await reload('stores')
 }
@@ -464,8 +563,13 @@ export async function updateStore(
   slug: string,
   patch: Partial<StoreInput>,
 ): Promise<void> {
-  const { error } = await supabase.from('stores').update(patch).eq('slug', slug)
+  const { data, error } = await supabase
+    .from('stores')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('slug', slug)
+    .select('slug')
   if (error) throw error
+  assertRowsUpdated(data, 'Store')
   await reload('stores')
 }
 
@@ -478,9 +582,13 @@ export async function deleteStore(slug: string): Promise<void> {
 // See bulkCreateBrands — same "insert if missing" behavior for stores.
 export async function bulkCreateStores(inputs: StoreInput[]): Promise<void> {
   if (!inputs.length) return
+  const now = new Date().toISOString()
   const { error } = await supabase
     .from('stores')
-    .upsert(inputs, { onConflict: 'slug', ignoreDuplicates: true })
+    .upsert(
+      inputs.map((s) => ({ ...s, updated_at: now })),
+      { onConflict: 'slug', ignoreDuplicates: true },
+    )
   if (error) throw error
   await reload('stores')
 }
@@ -489,7 +597,7 @@ export async function bulkCreateStores(inputs: StoreInput[]): Promise<void> {
 // Deals
 // ---------------------------------------------------------------------------
 
-export type DealInput = Omit<Deal, 'id' | 'clicks' | 'status'> & {
+export type DealInput = Omit<Deal, 'id' | 'clicks' | 'status' | 'updated_at'> & {
   clicks?: number
   status?: DealStatus
 }
@@ -501,6 +609,7 @@ export async function createDeal(input: DealInput): Promise<void> {
     id,
     clicks: input.clicks ?? 0,
     status: input.status ?? 'ACTIVE',
+    updated_at: new Date().toISOString(),
   })
   if (error) throw error
   await reload('deals')
@@ -510,8 +619,13 @@ export async function updateDeal(
   id: string,
   patch: Partial<DealInput>,
 ): Promise<void> {
-  const { error } = await supabase.from('deals').update(patch).eq('id', id)
+  const { data, error } = await supabase
+    .from('deals')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id')
   if (error) throw error
+  assertRowsUpdated(data, 'Deal')
   await reload('deals')
 }
 
@@ -532,11 +646,13 @@ export async function deleteDeal(id: string): Promise<void> {
 // Sale events
 // ---------------------------------------------------------------------------
 
-export type SaleEventInput = Omit<SaleEvent, 'id'>
+export type SaleEventInput = Omit<SaleEvent, 'id' | 'updated_at'>
 
 export async function createSaleEvent(input: SaleEventInput): Promise<void> {
   const id = `SE-${Date.now().toString(36)}`
-  const { error } = await supabase.from('sale_events').insert({ ...input, id })
+  const { error } = await supabase
+    .from('sale_events')
+    .insert({ ...input, id, updated_at: new Date().toISOString() })
   if (error) throw error
   await reload('saleEvents')
 }
@@ -545,11 +661,13 @@ export async function updateSaleEvent(
   id: string,
   patch: Partial<SaleEventInput>,
 ): Promise<void> {
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('sale_events')
-    .update(patch)
+    .update({ ...patch, updated_at: new Date().toISOString() })
     .eq('id', id)
+    .select('id')
   if (error) throw error
+  assertRowsUpdated(data, 'Sale event')
   await reload('saleEvents')
 }
 

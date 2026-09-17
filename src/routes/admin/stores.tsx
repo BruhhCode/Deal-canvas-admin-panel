@@ -4,10 +4,13 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { StoreForm } from '@/components/admin/StoreForm'
+import { StatusBadge } from '@/components/admin/StatusBadge'
 import { errorMessage } from '@/components/admin/FormField'
+import { timeAgo, useLiveNow } from '@/lib/time'
 import {
   deleteStore,
   productsByStore,
+  storeStatus,
   useDataStatus,
   useProducts,
   useStores,
@@ -22,6 +25,7 @@ function StoresTab() {
   const stores = useStores()
   const products = useProducts()
   const { loaded } = useDataStatus()
+  useLiveNow() // re-render periodically so "Last updated" cells stay current
   const [editing, setEditing] = useState<Store | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Store | null>(null)
 
@@ -51,6 +55,7 @@ function StoresTab() {
               <th className="px-4 py-3">Store ID</th>
               <th className="px-4 py-3">Products</th>
               <th className="px-4 py-3">Status</th>
+              <th className="px-4 py-3">Last updated</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -71,7 +76,12 @@ function StoresTab() {
                 <td className="px-4 py-3">
                   {productsByStore(products, st.slug).length}
                 </td>
-                <td className="px-4 py-3 text-clay">Active</td>
+                <td className="px-4 py-3">
+                  <StatusBadge status={storeStatus(st, products)} />
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {timeAgo(st.updated_at)}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
                     <button
@@ -97,7 +107,7 @@ function StoresTab() {
             {stores.length === 0 ? (
               <tr>
                 <td
-                  colSpan={7}
+                  colSpan={8}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   {loaded ? 'No stores yet.' : 'Loading stores...'}

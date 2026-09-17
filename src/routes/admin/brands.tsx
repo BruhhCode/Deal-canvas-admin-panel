@@ -7,6 +7,7 @@ import { BrandForm } from '@/components/admin/BrandForm'
 import { errorMessage } from '@/components/admin/FormField'
 import { categoryName } from '@/types/catalog'
 import type { Brand } from '@/types/catalog'
+import { timeAgo, useLiveNow } from '@/lib/time'
 import {
   deleteBrand,
   useBrands,
@@ -24,6 +25,7 @@ function BrandsTab() {
   const products = useProducts()
   const deals = useDeals()
   const { loaded } = useDataStatus()
+  useLiveNow() // re-render periodically so "Last updated" cells stay current
   const [editing, setEditing] = useState<Brand | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Brand | null>(null)
 
@@ -53,6 +55,7 @@ function BrandsTab() {
               <th className="px-4 py-3">Network</th>
               <th className="px-4 py-3">Products</th>
               <th className="px-4 py-3">Deals</th>
+              <th className="px-4 py-3">Last updated</th>
               <th className="px-4 py-3">Actions</th>
             </tr>
           </thead>
@@ -76,6 +79,9 @@ function BrandsTab() {
                 </td>
                 <td className="px-4 py-3">
                   {deals.filter((d) => d.brand === b.slug).length}
+                </td>
+                <td className="px-4 py-3 text-muted-foreground">
+                  {timeAgo(b.updated_at)}
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex gap-2">
@@ -102,7 +108,7 @@ function BrandsTab() {
             {brands.length === 0 ? (
               <tr>
                 <td
-                  colSpan={6}
+                  colSpan={7}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   {loaded
