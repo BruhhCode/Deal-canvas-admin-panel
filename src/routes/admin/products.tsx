@@ -53,7 +53,7 @@ function ProductsTab() {
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [brand, setBrand] = useState('')
-  const [sort, setSort] = useState<SortKey>('name')
+  const [sort, setSort] = useState<SortKey>('updated')
   const [editing, setEditing] = useState<ProductWithOffers | 'new' | null>(null)
   const [deleting, setDeleting] = useState<ProductWithOffers | null>(null)
   const [importing, setImporting] = useState(false)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
@@ -30,8 +30,13 @@ function StoresTab() {
   const [editing, setEditing] = useState<Store | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Store | null>(null)
 
+  const rows = useMemo(
+    () => [...stores].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+    [stores],
+  )
+
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
-    usePagination(stores)
+    usePagination(rows)
 
   const affectedProductCount = deleting
     ? productsByStore(products, deleting.slug).length

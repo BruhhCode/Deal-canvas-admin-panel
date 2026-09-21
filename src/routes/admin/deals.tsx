@@ -47,7 +47,7 @@ function DealsTab() {
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [brand, setBrand] = useState('')
-  const [sort, setSort] = useState<SortKey>('title')
+  const [sort, setSort] = useState<SortKey>('updated')
   const [editing, setEditing] = useState<Deal | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Deal | null>(null)
 

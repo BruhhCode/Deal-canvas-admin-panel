@@ -42,7 +42,7 @@ function BrandsTab() {
   useLiveNow() // re-render periodically so "Last updated" cells stay current
   const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
-  const [sort, setSort] = useState<SortKey>('name')
+  const [sort, setSort] = useState<SortKey>('updated')
   const [editing, setEditing] = useState<Brand | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Brand | null>(null)
 
