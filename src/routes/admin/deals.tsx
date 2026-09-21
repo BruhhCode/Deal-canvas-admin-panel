@@ -1,11 +1,11 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
-import { DealBadge } from '@/components/DealBadge'
 import { Modal } from '@/components/admin/Modal'
 import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DealForm } from '@/components/admin/DealForm'
+import { StatusToggle } from '@/components/admin/StatusToggle'
 import { errorMessage } from '@/components/admin/FormField'
 import { toUsd, useCurrency } from '@/lib/currency'
 import { timeAgo, useLiveNow } from '@/lib/time'
@@ -13,6 +13,7 @@ import {
   brandName,
   deleteDeal,
   discountPct,
+  setDealStatus,
   useBrands,
   useDataStatus,
   useDeals,
@@ -175,7 +176,15 @@ function DealsTab() {
                   {d.clicks.toLocaleString('en-US')}
                 </td>
                 <td className="px-4 py-3">
-                  <DealBadge badge={d.status} />
+                  <StatusToggle
+                    active={d.status === 'ACTIVE'}
+                    activeLabel="ACTIVE"
+                    inactiveLabel={d.status === 'ACTIVE' ? 'PAUSED' : d.status}
+                    onToggle={(next) =>
+                      setDealStatus(d.id, next ? 'ACTIVE' : 'PAUSED')
+                    }
+                    errorFallback="Failed to update deal status."
+                  />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {timeAgo(d.updated_at)}

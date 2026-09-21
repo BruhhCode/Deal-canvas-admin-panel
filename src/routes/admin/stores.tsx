@@ -5,12 +5,13 @@ import { Modal } from '@/components/admin/Modal'
 import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { StoreForm } from '@/components/admin/StoreForm'
-import { StatusBadge } from '@/components/admin/StatusBadge'
+import { StatusToggle } from '@/components/admin/StatusToggle'
 import { errorMessage } from '@/components/admin/FormField'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
   deleteStore,
   productsByStore,
+  setStoreAvailability,
   storeStatus,
   useDataStatus,
   useProducts,
@@ -29,6 +30,10 @@ function StoresTab() {
   useLiveNow() // re-render periodically so "Last updated" cells stay current
   const [editing, setEditing] = useState<Store | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Store | null>(null)
+  const [togglingStore, setTogglingStore] = useState<{
+    store: Store
+    next: boolean
+  } | null>(null)
 
   const rows = useMemo(
     () => [...stores].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')),
@@ -86,7 +91,17 @@ function StoresTab() {
                   {productsByStore(products, st.slug).length}
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge status={storeStatus(st, products)} />
+                  <StatusToggle
+                    active={storeStatus(st, products) !== 'OUT OF STOCK'}
+                    activeLabel={
+                      storeStatus(st, products) === 'LOW STOCK' ? 'LOW STOCK' : 'ACTIVE'
+                    }
+                    inactiveLabel="OUT OF STOCK"
+                    onToggle={async (next) => {
+                      setTogglingStore({ store: st, next })
+                    }}
+                    errorFallback="Failed to update store availability."
+                  />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {timeAgo(st.updated_at)}
@@ -148,6 +163,29 @@ function StoresTab() {
             onCancel={() => setEditing(null)}
           />
         </Modal>
+      ) : null}
+
+      {togglingStore ? (
+        <ConfirmDialog
+          title={togglingStore.next ? 'Mark store active' : 'Mark store out of stock'}
+          description={`This will set every offer at "${togglingStore.store.name}" (${
+            productsByStore(products, togglingStore.store.slug).length
+          } product${
+            productsByStore(products, togglingStore.store.slug).length === 1 ? '' : 's'
+          }) to ${togglingStore.next ? 'in stock' : 'out of stock'}.`}
+          onCancel={() => setTogglingStore(null)}
+          onConfirm={async () => {
+            try {
+              await setStoreAvailability(
+                togglingStore.store.slug,
+                togglingStore.next ? 'IN STOCK' : 'OUT OF STOCK',
+              )
+              setTogglingStore(null)
+            } catch (err) {
+              window.alert(errorMessage(err, 'Failed to update store availability.'))
+            }
+          }}
+        />
       ) : null}
 
       {deleting ? (

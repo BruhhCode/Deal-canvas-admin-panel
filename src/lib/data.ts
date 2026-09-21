@@ -593,6 +593,25 @@ export async function deleteProduct(slug: string): Promise<void> {
   await reload('products')
 }
 
+// Product status has no column of its own — it's derived from every offer's
+// `availability` (see productStatus below) — so the click-to-toggle status
+// badge writes `availability` across all of a product's offers at once
+// rather than a single field. Collapses LOW STOCK into "active" on click,
+// same as the badge's own active/inactive grouping.
+export async function setProductAvailability(
+  slug: string,
+  availability: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('offers')
+    .update({ availability, updated_at: new Date().toISOString() })
+    .eq('product_slug', slug)
+    .select('id')
+  if (error) throw error
+  assertRowsUpdated(data, 'Product availability')
+  await reload('products')
+}
+
 // Bulk-creates OR updates products (+ their offers) in batches, for the
 // "Import feed" flow — doubles as bulk update: re-importing a CSV containing
 // a product_url you already imported before (same auto-derived slug) updates
@@ -672,6 +691,23 @@ export async function deleteStore(slug: string): Promise<void> {
   const { error } = await supabase.from('stores').delete().eq('slug', slug)
   if (error) throw error
   await reload('stores')
+}
+
+// Same idea as setProductAvailability, but store-wide — writes every offer
+// at that store, which can span many products, so callers should confirm
+// with the affected count first rather than firing this on a bare click.
+export async function setStoreAvailability(
+  slug: string,
+  availability: string,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('offers')
+    .update({ availability, updated_at: new Date().toISOString() })
+    .eq('store', slug)
+    .select('id')
+  if (error) throw error
+  assertRowsUpdated(data, 'Store availability')
+  await reload('products')
 }
 
 // See bulkCreateBrands — same "insert if missing" behavior for stores.

@@ -6,7 +6,7 @@ import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ProductForm } from '@/components/admin/ProductForm'
 import { ImportFeedModal } from '@/components/admin/ImportFeedModal'
-import { StatusBadge } from '@/components/admin/StatusBadge'
+import { StatusToggle } from '@/components/admin/StatusToggle'
 import { errorMessage } from '@/components/admin/FormField'
 import { toUsd, useCurrency } from '@/lib/currency'
 import { timeAgo, useLiveNow } from '@/lib/time'
@@ -17,6 +17,7 @@ import {
   productDiscount,
   productLastUpdated,
   productStatus,
+  setProductAvailability,
   useBrands,
   useDataStatus,
   useProducts,
@@ -198,7 +199,18 @@ function ProductsTab() {
                   </td>
                   <td className="px-4 py-3">{productDiscount(p)}%</td>
                   <td className="px-4 py-3">
-                    <StatusBadge status={productStatus(p)} />
+                    <StatusToggle
+                      active={productStatus(p) !== 'OUT OF STOCK'}
+                      activeLabel={productStatus(p) === 'LOW STOCK' ? 'LOW STOCK' : 'ACTIVE'}
+                      inactiveLabel="OUT OF STOCK"
+                      onToggle={(next) =>
+                        setProductAvailability(
+                          p.slug,
+                          next ? 'IN STOCK' : 'OUT OF STOCK',
+                        )
+                      }
+                      errorFallback="Failed to update product availability."
+                    />
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {timeAgo(productLastUpdated(p))}

@@ -4,10 +4,10 @@ import { Pencil, Search, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { PageForm } from '@/components/admin/PageForm'
-import { StatusBadge } from '@/components/admin/StatusBadge'
+import { StatusToggle } from '@/components/admin/StatusToggle'
 import { errorMessage } from '@/components/admin/FormField'
 import { timeAgo, useLiveNow } from '@/lib/time'
-import { deletePage, useDataStatus, usePages } from '@/lib/data'
+import { deletePage, updatePage, useDataStatus, usePages } from '@/lib/data'
 import type { Page } from '@/types/catalog'
 
 export const Route = createFileRoute('/admin/pages')({
@@ -86,8 +86,14 @@ function PagesTab() {
                   /pages/{p.slug}
                 </td>
                 <td className="px-4 py-3">
-                  <StatusBadge
-                    status={p.status === 'PUBLISHED' ? 'ACTIVE' : 'PAUSED'}
+                  <StatusToggle
+                    active={p.status === 'PUBLISHED'}
+                    activeLabel="PUBLISHED"
+                    inactiveLabel="DRAFT"
+                    onToggle={(next) =>
+                      updatePage(p.slug, { status: next ? 'PUBLISHED' : 'DRAFT' })
+                    }
+                    errorFallback="Failed to update page status."
                   />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">

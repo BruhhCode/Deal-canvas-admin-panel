@@ -4,9 +4,10 @@ import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { NavItemForm } from '@/components/admin/NavItemForm'
+import { StatusToggle } from '@/components/admin/StatusToggle'
 import { errorMessage } from '@/components/admin/FormField'
 import { timeAgo, useLiveNow } from '@/lib/time'
-import { deleteNavItem, useDataStatus, useNavItems } from '@/lib/data'
+import { deleteNavItem, updateNavItem, useDataStatus, useNavItems } from '@/lib/data'
 import type { NavItem } from '@/types/catalog'
 
 export const Route = createFileRoute('/admin/navigation')({
@@ -69,11 +70,13 @@ function NavigationTab() {
                   {n.href}
                 </td>
                 <td className="px-4 py-3">
-                  {n.visible ? (
-                    <span className="text-clay">Yes</span>
-                  ) : (
-                    <span className="text-muted-foreground">Hidden</span>
-                  )}
+                  <StatusToggle
+                    active={n.visible}
+                    activeLabel="VISIBLE"
+                    inactiveLabel="HIDDEN"
+                    onToggle={(next) => updateNavItem(n.slug, { visible: next })}
+                    errorFallback="Failed to update visibility."
+                  />
                 </td>
                 <td className="px-4 py-3 text-muted-foreground">
                   {timeAgo(n.updated_at)}
