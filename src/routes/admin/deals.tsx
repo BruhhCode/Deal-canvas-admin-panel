@@ -70,7 +70,7 @@ function DealsTab() {
         case 'price-desc':
           return b.price - a.price
         case 'updated':
-          return b.updated_at.localeCompare(a.updated_at)
+          return (b.updated_at ?? '').localeCompare(a.updated_at ?? '')
         case 'title':
         default:
           return a.title.localeCompare(b.title)

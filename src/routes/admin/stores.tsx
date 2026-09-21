@@ -31,7 +31,7 @@ function StoresTab() {
   const [deleting, setDeleting] = useState<Store | null>(null)
 
   const rows = useMemo(
-    () => [...stores].sort((a, b) => b.updated_at.localeCompare(a.updated_at)),
+    () => [...stores].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')),
     [stores],
   )
 

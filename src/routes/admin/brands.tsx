@@ -59,7 +59,7 @@ function BrandsTab() {
     return [...filtered].sort((a, b) => {
       switch (sort) {
         case 'updated':
-          return b.updated_at.localeCompare(a.updated_at)
+          return (b.updated_at ?? '').localeCompare(a.updated_at ?? '')
         case 'products':
           return productCount(b.slug) - productCount(a.slug)
         case 'name':

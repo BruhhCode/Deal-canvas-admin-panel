@@ -54,7 +54,7 @@ function Dashboard() {
   const recentMessages = useMemo(
     () =>
       [...messages]
-        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+        .sort((a, b) => (b.created_at ?? '').localeCompare(a.created_at ?? ''))
         .slice(0, 5),
     [messages],
   )
@@ -62,7 +62,7 @@ function Dashboard() {
   const recentlyUpdatedProducts = useMemo(
     () =>
       [...products]
-        .sort((a, b) => b.updated_at.localeCompare(a.updated_at))
+        .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? ''))
         .slice(0, 5),
     [products],
   )
