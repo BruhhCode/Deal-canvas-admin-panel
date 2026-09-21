@@ -199,6 +199,7 @@ function BrandsTab() {
         <Modal
           title={editing === 'new' ? 'Add brand' : 'Edit brand'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <BrandForm
             brand={editing === 'new' ? undefined : editing}

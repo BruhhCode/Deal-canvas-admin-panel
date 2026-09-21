@@ -217,6 +217,7 @@ function DealsTab() {
         <Modal
           title={editing === 'new' ? 'Add deal' : 'Edit deal'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <DealForm
             deal={editing === 'new' ? undefined : editing}

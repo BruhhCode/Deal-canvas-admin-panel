@@ -133,6 +133,7 @@ function PagesTab() {
         <Modal
           title={editing === 'new' ? 'Add page' : 'Edit page'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <PageForm
             page={editing === 'new' ? undefined : editing}

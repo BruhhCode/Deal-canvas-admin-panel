@@ -137,6 +137,7 @@ function FaqTab() {
         <Modal
           title={editing === 'new' ? 'Add FAQ' : 'Edit FAQ'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <FaqForm
             faq={editing === 'new' ? undefined : editing}

@@ -122,6 +122,7 @@ function StoresTab() {
         <Modal
           title={editing === 'new' ? 'Add store' : 'Edit store'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <StoreForm
             store={editing === 'new' ? undefined : editing}

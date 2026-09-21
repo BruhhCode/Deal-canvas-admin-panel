@@ -88,6 +88,7 @@ function SalesTab() {
         <Modal
           title={editing === 'new' ? 'Add sale' : 'Edit sale'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <SaleEventForm
             event={editing === 'new' ? undefined : editing}

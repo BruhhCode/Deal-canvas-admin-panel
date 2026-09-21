@@ -118,6 +118,7 @@ function NavigationTab() {
         <Modal
           title={editing === 'new' ? 'Add nav item' : 'Edit nav item'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <NavItemForm
             item={editing === 'new' ? undefined : editing}

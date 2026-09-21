@@ -255,7 +255,7 @@ function ProductsTab() {
       ) : null}
 
       {importing ? (
-        <Modal title="Import product feed" onClose={() => setImporting(false)}>
+        <Modal title="Import product feed" onClose={() => setImporting(false)} size="xl">
           <ImportFeedModal
             brands={brands}
             stores={stores}

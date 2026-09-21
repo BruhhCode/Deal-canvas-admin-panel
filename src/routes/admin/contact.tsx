@@ -147,7 +147,7 @@ function ContactTab() {
       </div>
 
       {viewing ? (
-        <Modal title="Message" onClose={() => setViewing(null)}>
+        <Modal title="Message" onClose={() => setViewing(null)} size="xl">
           <div className="space-y-3 text-sm">
             <div className="flex items-center justify-between">
               <div>
