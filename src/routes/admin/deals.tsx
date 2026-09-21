@@ -3,6 +3,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { DealBadge } from '@/components/DealBadge'
 import { Modal } from '@/components/admin/Modal'
+import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DealForm } from '@/components/admin/DealForm'
 import { errorMessage } from '@/components/admin/FormField'
@@ -76,6 +77,9 @@ function DealsTab() {
       }
     })
   }, [deals, brands, q, category, brand, sort])
+
+  const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
+    usePagination(rows)
 
   return (
     <>
@@ -157,7 +161,7 @@ function DealsTab() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((d) => (
+            {pagedRows.map((d) => (
               <tr key={d.id} className="border-t">
                 <td className="px-4 py-3">{d.product}</td>
                 <td className="px-4 py-3">{brandName(brands, d.brand)}</td>
@@ -212,6 +216,15 @@ function DealsTab() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        pageCount={pageCount}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {editing ? (
         <Modal

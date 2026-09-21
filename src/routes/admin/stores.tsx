@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
+import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { StoreForm } from '@/components/admin/StoreForm'
 import { StatusBadge } from '@/components/admin/StatusBadge'
@@ -28,6 +29,9 @@ function StoresTab() {
   useLiveNow() // re-render periodically so "Last updated" cells stay current
   const [editing, setEditing] = useState<Store | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Store | null>(null)
+
+  const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
+    usePagination(stores)
 
   const affectedProductCount = deleting
     ? productsByStore(products, deleting.slug).length
@@ -60,7 +64,7 @@ function StoresTab() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {stores.map((st) => (
+            {pagedRows.map((st) => (
               <tr key={st.slug}>
                 <td className="px-4 py-3">
                   {st.name}
@@ -117,6 +121,15 @@ function StoresTab() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        pageCount={pageCount}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {editing ? (
         <Modal

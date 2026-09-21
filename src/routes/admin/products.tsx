@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Pencil, Search, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
+import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ProductForm } from '@/components/admin/ProductForm'
 import { ImportFeedModal } from '@/components/admin/ImportFeedModal'
@@ -83,8 +84,11 @@ function ProductsTab() {
       }
     })
 
-    return sorted.slice(0, 30)
+    return sorted
   }, [products, brands, q, category, brand, sort])
+
+  const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
+    usePagination(rows)
 
   return (
     <>
@@ -181,7 +185,7 @@ function ProductsTab() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.map((p) => {
+            {pagedRows.map((p) => {
               const best = bestOffer(p)
               return (
                 <tr key={p.slug}>
@@ -237,6 +241,15 @@ function ProductsTab() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        pageCount={pageCount}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {editing ? (
         <Modal

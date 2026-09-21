@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Pencil, Search, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
+import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { BrandForm } from '@/components/admin/BrandForm'
 import { errorMessage } from '@/components/admin/FormField'
@@ -67,6 +68,9 @@ function BrandsTab() {
       }
     })
   }, [brands, q, category, sort, products])
+
+  const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
+    usePagination(rows)
 
   const affectedCount = deleting
     ? products.filter((p) => p.brand === deleting.slug).length +
@@ -136,7 +140,7 @@ function BrandsTab() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {rows.map((b) => (
+            {pagedRows.map((b) => (
               <tr key={b.slug}>
                 <td className="px-4 py-3">
                   {b.name}
@@ -194,6 +198,15 @@ function BrandsTab() {
           </tbody>
         </table>
       </div>
+
+      <Pagination
+        page={page}
+        pageCount={pageCount}
+        pageSize={pageSize}
+        totalCount={totalCount}
+        onPageChange={setPage}
+        onPageSizeChange={setPageSize}
+      />
 
       {editing ? (
         <Modal
