@@ -1,14 +1,22 @@
 import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
 
+const SIZES = {
+  md: 'max-w-lg',
+  lg: 'max-w-3xl',
+  xl: 'max-w-5xl',
+} as const
+
 export function Modal({
   title,
   onClose,
   children,
+  size = 'md',
 }: {
   title: string
   onClose: () => void
   children: React.ReactNode
+  size?: keyof typeof SIZES
 }) {
   const titleId = useId()
   const dialogRef = useRef<HTMLDivElement>(null)
@@ -35,7 +43,7 @@ export function Modal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="w-full max-w-lg rounded-lg border bg-card p-6 shadow-card"
+        className={`w-full ${SIZES[size]} rounded-lg border bg-card p-6 shadow-card`}
       >
         <div className="mb-5 flex items-center justify-between border-b pb-4">
           <h2 id={titleId} className="text-xl">

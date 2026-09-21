@@ -242,6 +242,7 @@ function ProductsTab() {
         <Modal
           title={editing === 'new' ? 'Add product' : 'Edit product'}
           onClose={() => setEditing(null)}
+          size="xl"
         >
           <ProductForm
             product={editing === 'new' ? undefined : editing}
