@@ -11,6 +11,7 @@ import {
   CalendarDays,
   FileText,
   HelpCircle,
+  LayoutDashboard,
   LogOut,
   Mail,
   Menu,
@@ -40,6 +41,7 @@ export const Route = createFileRoute('/admin')({
 })
 
 const tabs = [
+  { label: 'Dashboard', to: '/admin', icon: LayoutDashboard },
   { label: 'Products', to: '/admin/products', icon: Package },
   { label: 'Brands', to: '/admin/brands', icon: Tags },
   { label: 'Stores', to: '/admin/stores', icon: Store },
@@ -72,8 +74,14 @@ function AdminLayout() {
 
   if (!isAuthenticated) return null
 
-  const activeTab =
-    tabs.find((t) => pathname.startsWith(t.to))?.label ?? 'Products'
+  // "/admin" is the Dashboard's own path, so it can't use the same
+  // startsWith check as the other tabs (every admin route starts with
+  // "/admin") — it only matches the exact root, everything else falls
+  // through to a prefix match against its own longer path.
+  const isTabActive = (to: string) =>
+    to === '/admin' ? pathname === '/admin' || pathname === '/admin/' : pathname.startsWith(to)
+
+  const activeTab = tabs.find((t) => isTabActive(t.to))?.label ?? 'Dashboard'
 
   function signOut() {
     logout()
@@ -83,7 +91,7 @@ function AdminLayout() {
   const navLinks = (
     <nav className="flex-1 space-y-1">
       {tabs.map((t) => {
-        const active = pathname.startsWith(t.to)
+        const active = isTabActive(t.to)
         const Icon = t.icon
         return (
           <Link
@@ -177,7 +185,9 @@ function AdminLayout() {
           />
           <header className="mb-8 border-b pb-6">
             <p className="editorial-eyebrow">Internal · admin</p>
-            <h1 className="mt-3 text-4xl">Catalogue Management</h1>
+            <h1 className="mt-3 text-4xl">
+              {activeTab === 'Dashboard' ? 'Dashboard' : 'Catalogue Management'}
+            </h1>
           </header>
 
           <Outlet />
