@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Search, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ProductForm } from '@/components/admin/ProductForm'
 import { ImportFeedModal } from '@/components/admin/ImportFeedModal'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { errorMessage, selectClass } from '@/components/admin/FormField'
+import { errorMessage } from '@/components/admin/FormField'
 import { toUsd, useCurrency } from '@/lib/currency'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
@@ -35,6 +35,12 @@ const SORTS = {
   updated: 'Recently updated',
 } as const
 type SortKey = keyof typeof SORTS
+
+// Compact, pill-shaped filter controls — matches the search bar's height so
+// the whole filter row reads as one connected group instead of the old
+// full-width form-style dropdowns, which towered over the search input.
+const pillClass =
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
 
 function ProductsTab() {
   const products = useProducts()
@@ -83,17 +89,20 @@ function ProductsTab() {
   return (
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap gap-2">
-          <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Search products..."
-            aria-label="Search products"
-            className="w-full max-w-sm rounded-sm border bg-card px-3 py-2 text-sm outline-none focus:border-clay"
-          />
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search products..."
+              aria-label="Search products"
+              className={`${pillClass} w-48 pl-8`}
+            />
+          </div>
           <select
             aria-label="Filter by category"
-            className={selectClass}
+            className={pillClass}
             value={category}
             onChange={(e) => setCategory(e.target.value)}
           >
@@ -106,7 +115,7 @@ function ProductsTab() {
           </select>
           <select
             aria-label="Filter by brand"
-            className={selectClass}
+            className={pillClass}
             value={brand}
             onChange={(e) => setBrand(e.target.value)}
           >
@@ -119,7 +128,7 @@ function ProductsTab() {
           </select>
           <select
             aria-label="Sort products"
-            className={selectClass}
+            className={pillClass}
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
           >
