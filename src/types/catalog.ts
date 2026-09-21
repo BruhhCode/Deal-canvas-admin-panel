@@ -132,6 +132,56 @@ export type Network = {
   clicks: number
 }
 
+// The public site's header nav, editable from the admin panel's Navigation
+// section instead of hardcoded in the site's Header.tsx.
+export type NavItem = {
+  slug: string
+  label: string
+  href: string
+  sort_order: number
+  visible: boolean
+  updated_at: string
+}
+
+export type PageStatus = 'DRAFT' | 'PUBLISHED'
+
+// A minimal CMS page. `content` is plain text with paragraphs separated by
+// a blank line — same convention the site's guides already use — not HTML,
+// so there's no stored-XSS surface from rendering it directly.
+export type Page = {
+  slug: string
+  title: string
+  content: string
+  meta_description: string | null
+  status: PageStatus
+  updated_at: string
+}
+
+// Grouped by `section` (e.g. "Orders", "Shipping") for the public FAQ page.
+export type Faq = {
+  id: string
+  section: string
+  question: string
+  answer: string
+  sort_order: number
+  updated_at: string
+}
+
+export type ContactMessageStatus = 'NEW' | 'READ' | 'RESOLVED'
+
+// Written by the public site's /contact form (anon insert-only); the admin
+// panel only ever reads/updates-status/deletes, never creates one.
+export type ContactMessage = {
+  id: string
+  name: string
+  email: string
+  subject: string
+  message: string
+  status: ContactMessageStatus
+  created_at: string
+  updated_at: string
+}
+
 export const CATEGORIES: Record<string, string> = {
   shoes: 'Shoes',
   fashion: 'Fashion',

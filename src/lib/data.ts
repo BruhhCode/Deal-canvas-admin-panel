@@ -8,11 +8,15 @@ import { useMemo, useSyncExternalStore } from 'react'
 import { supabase } from './supabaseClient'
 import type {
   Brand,
+  ContactMessage,
   Coupon,
   Deal,
   DealStatus,
+  Faq,
+  NavItem,
   Network,
   Offer,
+  Page,
   Product,
   ProductWithOffers,
   SaleEvent,
@@ -26,6 +30,10 @@ type DB = {
   deals: Deal[]
   coupons: Coupon[]
   saleEvents: SaleEvent[]
+  navItems: NavItem[]
+  pages: Page[]
+  faqs: Faq[]
+  contactMessages: ContactMessage[]
   loaded: boolean
   error: string | null
 }
@@ -37,6 +45,10 @@ let db: DB = {
   deals: [],
   coupons: [],
   saleEvents: [],
+  navItems: [],
+  pages: [],
+  faqs: [],
+  contactMessages: [],
   loaded: false,
   error: null,
 }
@@ -149,8 +161,53 @@ async function fetchSaleEvents(): Promise<SaleEvent[]> {
   return data as SaleEvent[]
 }
 
+async function fetchNavItems(): Promise<NavItem[]> {
+  const { data, error } = await supabase
+    .from('nav_items')
+    .select('*')
+    .order('sort_order')
+  if (error) throw error
+  return data as NavItem[]
+}
+
+async function fetchPages(): Promise<Page[]> {
+  const { data, error } = await supabase
+    .from('pages')
+    .select('*')
+    .order('title')
+  if (error) throw error
+  return data as Page[]
+}
+
+async function fetchFaqs(): Promise<Faq[]> {
+  const { data, error } = await supabase
+    .from('faqs')
+    .select('*')
+    .order('sort_order')
+  if (error) throw error
+  return data as Faq[]
+}
+
+async function fetchContactMessages(): Promise<ContactMessage[]> {
+  const { data, error } = await supabase
+    .from('contact_messages')
+    .select('*')
+    .order('created_at', { ascending: false })
+  if (error) throw error
+  return data as ContactMessage[]
+}
+
 type TableKey =
-  'products' | 'brands' | 'stores' | 'deals' | 'coupons' | 'saleEvents'
+  | 'products'
+  | 'brands'
+  | 'stores'
+  | 'deals'
+  | 'coupons'
+  | 'saleEvents'
+  | 'navItems'
+  | 'pages'
+  | 'faqs'
+  | 'contactMessages'
 
 const fetchers: Record<TableKey, () => Promise<unknown>> = {
   products: fetchProducts,
@@ -159,6 +216,10 @@ const fetchers: Record<TableKey, () => Promise<unknown>> = {
   deals: fetchDeals,
   coupons: fetchCoupons,
   saleEvents: fetchSaleEvents,
+  navItems: fetchNavItems,
+  pages: fetchPages,
+  faqs: fetchFaqs,
+  contactMessages: fetchContactMessages,
 }
 
 async function reload(table: TableKey) {
@@ -168,15 +229,29 @@ async function reload(table: TableKey) {
 
 async function loadAll() {
   try {
-    const [products, brands, stores, deals, coupons, saleEvents] =
-      await Promise.all([
-        fetchProducts(),
-        fetchBrands(),
-        fetchStores(),
-        fetchDeals(),
-        fetchCoupons(),
-        fetchSaleEvents(),
-      ])
+    const [
+      products,
+      brands,
+      stores,
+      deals,
+      coupons,
+      saleEvents,
+      navItems,
+      pages,
+      faqs,
+      contactMessages,
+    ] = await Promise.all([
+      fetchProducts(),
+      fetchBrands(),
+      fetchStores(),
+      fetchDeals(),
+      fetchCoupons(),
+      fetchSaleEvents(),
+      fetchNavItems(),
+      fetchPages(),
+      fetchFaqs(),
+      fetchContactMessages(),
+    ])
     set({
       products,
       brands,
@@ -184,6 +259,10 @@ async function loadAll() {
       deals,
       coupons,
       saleEvents,
+      navItems,
+      pages,
+      faqs,
+      contactMessages,
       loaded: true,
       error: null,
     })
@@ -231,6 +310,22 @@ export function useCoupons() {
 
 export function useSaleEvents() {
   return useDb().saleEvents
+}
+
+export function useNavItems() {
+  return useDb().navItems
+}
+
+export function usePages() {
+  return useDb().pages
+}
+
+export function useFaqs() {
+  return useDb().faqs
+}
+
+export function useContactMessages() {
+  return useDb().contactMessages
 }
 
 export function useDataStatus() {
@@ -675,4 +770,132 @@ export async function deleteSaleEvent(id: string): Promise<void> {
   const { error } = await supabase.from('sale_events').delete().eq('id', id)
   if (error) throw error
   await reload('saleEvents')
+}
+
+// ---------------------------------------------------------------------------
+// Nav items — the public site's header nav (see src/scripts/create-cms-tables.sql)
+// ---------------------------------------------------------------------------
+
+export type NavItemInput = Omit<NavItem, 'updated_at'>
+
+export async function createNavItem(input: NavItemInput): Promise<void> {
+  const { error } = await supabase
+    .from('nav_items')
+    .insert({ ...input, updated_at: new Date().toISOString() })
+  if (error) throw error
+  await reload('navItems')
+}
+
+export async function updateNavItem(
+  slug: string,
+  patch: Partial<NavItemInput>,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('nav_items')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('slug', slug)
+    .select('slug')
+  if (error) throw error
+  assertRowsUpdated(data, 'Nav item')
+  await reload('navItems')
+}
+
+export async function deleteNavItem(slug: string): Promise<void> {
+  const { error } = await supabase.from('nav_items').delete().eq('slug', slug)
+  if (error) throw error
+  await reload('navItems')
+}
+
+// ---------------------------------------------------------------------------
+// Pages (CMS)
+// ---------------------------------------------------------------------------
+
+export type PageInput = Omit<Page, 'updated_at'>
+
+export async function createPage(input: PageInput): Promise<void> {
+  const { error } = await supabase
+    .from('pages')
+    .insert({ ...input, updated_at: new Date().toISOString() })
+  if (error) throw error
+  await reload('pages')
+}
+
+export async function updatePage(
+  slug: string,
+  patch: Partial<PageInput>,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('pages')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('slug', slug)
+    .select('slug')
+  if (error) throw error
+  assertRowsUpdated(data, 'Page')
+  await reload('pages')
+}
+
+export async function deletePage(slug: string): Promise<void> {
+  const { error } = await supabase.from('pages').delete().eq('slug', slug)
+  if (error) throw error
+  await reload('pages')
+}
+
+// ---------------------------------------------------------------------------
+// FAQs
+// ---------------------------------------------------------------------------
+
+export type FaqInput = Omit<Faq, 'id' | 'updated_at'>
+
+export async function createFaq(input: FaqInput): Promise<void> {
+  const id = `FAQ-${Date.now().toString(36)}`
+  const { error } = await supabase
+    .from('faqs')
+    .insert({ ...input, id, updated_at: new Date().toISOString() })
+  if (error) throw error
+  await reload('faqs')
+}
+
+export async function updateFaq(
+  id: string,
+  patch: Partial<FaqInput>,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('faqs')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  assertRowsUpdated(data, 'FAQ')
+  await reload('faqs')
+}
+
+export async function deleteFaq(id: string): Promise<void> {
+  const { error } = await supabase.from('faqs').delete().eq('id', id)
+  if (error) throw error
+  await reload('faqs')
+}
+
+// ---------------------------------------------------------------------------
+// Contact messages — written only by the public site's /contact form; this
+// app never creates one, only triages (status) and deletes.
+// ---------------------------------------------------------------------------
+
+export async function setContactMessageStatus(
+  id: string,
+  status: ContactMessage['status'],
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('contact_messages')
+    .update({ status, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  assertRowsUpdated(data, 'Contact message')
+  await reload('contactMessages')
+}
+
+export async function deleteContactMessage(id: string): Promise<void> {
+  const { error } = await supabase.from('contact_messages').delete().eq('id', id)
+  if (error) throw error
+  await reload('contactMessages')
 }

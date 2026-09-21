@@ -7,6 +7,9 @@ const styles: Record<string, string> = {
   EXPIRED: 'border-destructive/30 bg-destructive/10 text-destructive',
   'OUT OF STOCK': 'border-destructive/30 bg-destructive/10 text-destructive',
   'SOLD OUT': 'border-destructive/30 bg-destructive/10 text-destructive',
+  NEW: 'border-amber-500/30 bg-amber-500/10 text-amber-600',
+  READ: 'border-border bg-muted text-muted-foreground',
+  RESOLVED: 'border-clay/30 bg-clay/10 text-clay',
 }
 
 export function StatusBadge({ status }: { status: string }) {

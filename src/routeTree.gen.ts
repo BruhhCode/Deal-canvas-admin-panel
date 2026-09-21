@@ -15,8 +15,11 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as AdminBrandsRouteImport } from './routes/admin/brands'
+import { Route as AdminContactRouteImport } from './routes/admin/contact'
 import { Route as AdminDealsRouteImport } from './routes/admin/deals'
-import { Route as AdminNetworksRouteImport } from './routes/admin/networks'
+import { Route as AdminFaqRouteImport } from './routes/admin/faq'
+import { Route as AdminNavigationRouteImport } from './routes/admin/navigation'
+import { Route as AdminPagesRouteImport } from './routes/admin/pages'
 import { Route as AdminProductsRouteImport } from './routes/admin/products'
 import { Route as AdminSalesRouteImport } from './routes/admin/sales'
 import { Route as AdminStoresRouteImport } from './routes/admin/stores'
@@ -51,14 +54,29 @@ const AdminBrandsRoute = AdminBrandsRouteImport.update({
   path: '/brands',
   getParentRoute: () => AdminRouteRoute,
 } as any)
+const AdminContactRoute = AdminContactRouteImport.update({
+  id: '/contact',
+  path: '/contact',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
 const AdminDealsRoute = AdminDealsRouteImport.update({
   id: '/deals',
   path: '/deals',
   getParentRoute: () => AdminRouteRoute,
 } as any)
-const AdminNetworksRoute = AdminNetworksRouteImport.update({
-  id: '/networks',
-  path: '/networks',
+const AdminFaqRoute = AdminFaqRouteImport.update({
+  id: '/faq',
+  path: '/faq',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminNavigationRoute = AdminNavigationRouteImport.update({
+  id: '/navigation',
+  path: '/navigation',
+  getParentRoute: () => AdminRouteRoute,
+} as any)
+const AdminPagesRoute = AdminPagesRouteImport.update({
+  id: '/pages',
+  path: '/pages',
   getParentRoute: () => AdminRouteRoute,
 } as any)
 const AdminProductsRoute = AdminProductsRouteImport.update({
@@ -83,8 +101,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/brands': typeof AdminBrandsRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/deals': typeof AdminDealsRoute
-  '/admin/networks': typeof AdminNetworksRoute
+  '/admin/faq': typeof AdminFaqRoute
+  '/admin/navigation': typeof AdminNavigationRoute
+  '/admin/pages': typeof AdminPagesRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/sales': typeof AdminSalesRoute
   '/admin/stores': typeof AdminStoresRoute
@@ -95,8 +116,11 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/brands': typeof AdminBrandsRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/deals': typeof AdminDealsRoute
-  '/admin/networks': typeof AdminNetworksRoute
+  '/admin/faq': typeof AdminFaqRoute
+  '/admin/navigation': typeof AdminNavigationRoute
+  '/admin/pages': typeof AdminPagesRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/sales': typeof AdminSalesRoute
   '/admin/stores': typeof AdminStoresRoute
@@ -109,8 +133,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/brands': typeof AdminBrandsRoute
+  '/admin/contact': typeof AdminContactRoute
   '/admin/deals': typeof AdminDealsRoute
-  '/admin/networks': typeof AdminNetworksRoute
+  '/admin/faq': typeof AdminFaqRoute
+  '/admin/navigation': typeof AdminNavigationRoute
+  '/admin/pages': typeof AdminPagesRoute
   '/admin/products': typeof AdminProductsRoute
   '/admin/sales': typeof AdminSalesRoute
   '/admin/stores': typeof AdminStoresRoute
@@ -124,8 +151,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/analytics'
     | '/admin/brands'
+    | '/admin/contact'
     | '/admin/deals'
-    | '/admin/networks'
+    | '/admin/faq'
+    | '/admin/navigation'
+    | '/admin/pages'
     | '/admin/products'
     | '/admin/sales'
     | '/admin/stores'
@@ -136,8 +166,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/analytics'
     | '/admin/brands'
+    | '/admin/contact'
     | '/admin/deals'
-    | '/admin/networks'
+    | '/admin/faq'
+    | '/admin/navigation'
+    | '/admin/pages'
     | '/admin/products'
     | '/admin/sales'
     | '/admin/stores'
@@ -149,8 +182,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/admin/analytics'
     | '/admin/brands'
+    | '/admin/contact'
     | '/admin/deals'
-    | '/admin/networks'
+    | '/admin/faq'
+    | '/admin/navigation'
+    | '/admin/pages'
     | '/admin/products'
     | '/admin/sales'
     | '/admin/stores'
@@ -207,6 +243,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBrandsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
+    '/admin/contact': {
+      id: '/admin/contact'
+      path: '/contact'
+      fullPath: '/admin/contact'
+      preLoaderRoute: typeof AdminContactRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
     '/admin/deals': {
       id: '/admin/deals'
       path: '/deals'
@@ -214,11 +257,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDealsRouteImport
       parentRoute: typeof AdminRouteRoute
     }
-    '/admin/networks': {
-      id: '/admin/networks'
-      path: '/networks'
-      fullPath: '/admin/networks'
-      preLoaderRoute: typeof AdminNetworksRouteImport
+    '/admin/faq': {
+      id: '/admin/faq'
+      path: '/faq'
+      fullPath: '/admin/faq'
+      preLoaderRoute: typeof AdminFaqRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/navigation': {
+      id: '/admin/navigation'
+      path: '/navigation'
+      fullPath: '/admin/navigation'
+      preLoaderRoute: typeof AdminNavigationRouteImport
+      parentRoute: typeof AdminRouteRoute
+    }
+    '/admin/pages': {
+      id: '/admin/pages'
+      path: '/pages'
+      fullPath: '/admin/pages'
+      preLoaderRoute: typeof AdminPagesRouteImport
       parentRoute: typeof AdminRouteRoute
     }
     '/admin/products': {
@@ -248,8 +305,11 @@ declare module '@tanstack/react-router' {
 interface AdminRouteRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminBrandsRoute: typeof AdminBrandsRoute
+  AdminContactRoute: typeof AdminContactRoute
   AdminDealsRoute: typeof AdminDealsRoute
-  AdminNetworksRoute: typeof AdminNetworksRoute
+  AdminFaqRoute: typeof AdminFaqRoute
+  AdminNavigationRoute: typeof AdminNavigationRoute
+  AdminPagesRoute: typeof AdminPagesRoute
   AdminProductsRoute: typeof AdminProductsRoute
   AdminSalesRoute: typeof AdminSalesRoute
   AdminStoresRoute: typeof AdminStoresRoute
@@ -259,8 +319,11 @@ interface AdminRouteRouteChildren {
 const AdminRouteRouteChildren: AdminRouteRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminBrandsRoute: AdminBrandsRoute,
+  AdminContactRoute: AdminContactRoute,
   AdminDealsRoute: AdminDealsRoute,
-  AdminNetworksRoute: AdminNetworksRoute,
+  AdminFaqRoute: AdminFaqRoute,
+  AdminNavigationRoute: AdminNavigationRoute,
+  AdminPagesRoute: AdminPagesRoute,
   AdminProductsRoute: AdminProductsRoute,
   AdminSalesRoute: AdminSalesRoute,
   AdminStoresRoute: AdminStoresRoute,

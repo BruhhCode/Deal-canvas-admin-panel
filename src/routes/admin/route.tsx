@@ -9,9 +9,12 @@ import {
 import {
   BarChart3,
   CalendarDays,
+  FileText,
+  HelpCircle,
   LogOut,
+  Mail,
   Menu,
-  Network,
+  Navigation as NavigationIcon,
   Package,
   Percent,
   Store,
@@ -43,7 +46,10 @@ const tabs = [
   { label: 'Deals', to: '/admin/deals', icon: Percent },
   { label: 'Sales', to: '/admin/sales', icon: CalendarDays },
   { label: 'Analytics', to: '/admin/analytics', icon: BarChart3 },
-  { label: 'Networks', to: '/admin/networks', icon: Network },
+  { label: 'Navigation', to: '/admin/navigation', icon: NavigationIcon },
+  { label: 'Pages', to: '/admin/pages', icon: FileText },
+  { label: 'FAQ', to: '/admin/faq', icon: HelpCircle },
+  { label: 'Contact Queries', to: '/admin/contact', icon: Mail },
 ] as const
 
 function AdminLayout() {

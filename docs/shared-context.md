@@ -82,40 +82,82 @@ A product can have many offers (one per store). `bestOffer()` (implemented indep
 ### `coupons`
 `id` (PK, text) · `brand` (FK → `brands.slug`) · `title` · `description` · `code` · `discount` · `expires_in_hours` (int) · `used_today` (int) · `success_rate` (numeric)
 
+### `reviews`
+`id` (PK, uuid) · `product_slug` (FK → `products.slug`, cascade delete) · `author` (default `'Anonymous'`) · `rating` (int, 1–5) · `comment` · `created_at`. Shopper-submitted from the product page — the one table the public site itself writes to directly, insert-only, no admin gate.
+
+### `admin_users` / `is_admin()`
+`admin_users`: `user_id` (PK, uuid, FK → `auth.users.id`) · `created_at`. `is_admin()` is a `security definer` SQL function (`select exists (select 1 from admin_users where user_id = auth.uid())`) defined in the site repo's `supabase/schema.sql`, live in the project. This is the gate the newer write policies below check — a request must be both `authenticated` (a real Supabase Auth session) **and** have a row in `admin_users`, not just any logged-in user. To grant someone admin: sign them up/in once (e.g. via the admin panel's `/login`), then `insert into admin_users (user_id) values ('<their-auth-uid>');` using the service-role key or the SQL Editor. No public read/write policy exists on `admin_users` itself.
+
+### `nav_items` (added for the admin panel's Navigation section)
+`slug` (PK, text) · `label` · `href` · `sort_order` (int) · `visible` (bool) · `updated_at`. Drives the public site's header nav (`Header.tsx`'s `useLiveNav()`) — a hardcoded fallback array in that file is used until this loads (and if it's ever empty). `href` is free text (admin-editable) so the site renders nav links as plain `<a>` tags, not typed `Link to`/`search` — don't assume it's a route the typed router knows about.
+
+### `pages` (added for the admin panel's Pages/CMS section)
+`slug` (PK, text) · `title` · `content` (plain text — paragraphs separated by a blank line, same convention as the site's static `guides`; deliberately not HTML, no `dangerouslySetInnerHTML` anywhere) · `meta_description` (nullable) · `status` (`'DRAFT' | 'PUBLISHED'`) · `updated_at`. Rendered at the site's `/pages/$slug`; only `PUBLISHED` rows are visible there (public read policy is `using (status = 'PUBLISHED')`, not a blanket `using (true)`).
+
+### `faqs` (added for the admin panel's FAQ section)
+`id` (PK, text, e.g. `"FAQ-<timestamp36>"`) · `section` (text — free-form grouping, e.g. `"Orders"`, `"Shipping"`) · `question` · `answer` · `sort_order` (int) · `updated_at`. Rendered at the site's `/faq`, grouped by `section`, with `FAQPage` JSON-LD generated from the live rows.
+
+### `contact_messages` (defined in the site repo's schema.sql; table itself was missing from the live project until the admin panel's `create-cms-tables.sql` created it)
+`id` (PK, uuid) · `name` · `email` · `subject` (default `''`) · `message` · `created_at` · `status` (`'NEW' | 'READ' | 'RESOLVED'`, added by the admin panel's script — not in the site repo's original definition) · `updated_at` (same). Written only by the site's `/contact` form (anon insert-only, no public read at all — not even `authenticated` without `is_admin()`); the admin panel's Contact Queries section reads/triages/deletes via `is_admin()`-gated policies.
+
 ### `network` values (CHECK-constrained on `brands`/`stores`/`deals`)
 Closed set — Postgres will reject anything else:
 `"Rakuten Advertising" | "Impact" | "Awin" | "CJ Affiliate" | "Admitad" | "Amazon Associates"`
 
 ## Row Level Security — current live state
 
-Verified empirically against the live project (not just read from a schema
-file, since both repos' SQL scripts have independently touched policies over
-time and could drift from what's on disk):
+**This section changed materially and should be re-verified empirically
+before being trusted, not just read** — both repos' SQL scripts have
+independently touched policies over time (see History), and the site repo's
+`supabase/schema.sql` was rewritten at some point to introduce a real
+`is_admin()` gate (see the `admin_users` table above) without a
+corresponding update landing here until now. Last verified empirically
+(signed in as a real `admin_users`-registered user and attempting real
+writes against the live project):
 
-- **Read**: `anon` key can read all 7 tables.
-- **Write**: `anon` key can currently **insert/update/delete on all 7 tables**
-  (a broad `"public write" ... using (true) with check (true)` policy, with no
-  `to` role restriction, exists on every table — Postgres RLS is
-  permissive/OR'd, so this alone grants anon full write access regardless of
-  any narrower `to authenticated` policies layered on top).
-- The admin panel repo *also* has narrower `to authenticated` insert/update/delete
-  policies (`src/scripts/rls-policies.sql`, `restore-products-rls.sql`) —
-  these are currently redundant with the wide-open anon policy, not a
-  replacement for it. **If real access control is ever wanted, the wide-open
-  `"public write"` policy must be dropped**, not just have `authenticated`
-  policies added alongside it — right now anyone with the public anon key
-  (which ships in both apps' client bundles) can write to every table with or
-  without logging in.
-- This is a known, accepted gap for now (no public deployment yet) — flagged
-  here so neither repo "fixes" only its own half and assumes the DB is locked
-  down.
+- **Read**: `anon` key can read `brands`, `stores`, `products`, `offers`,
+  `deals`, `sale_events`, `coupons`, `reviews`, `nav_items`, `faqs` — plus
+  `pages` where `status = 'PUBLISHED'`. `admin_users` and `contact_messages`
+  have no public read policy at all.
+- **Write**: confirmed live that a logged-in, `admin_users`-registered
+  session can currently insert/update/delete `products`, `brands`, `stores`,
+  and `offers`. The exact policy each of those is currently satisfying
+  wasn't fully disentangled (the admin panel repo's older, broader
+  `to authenticated with check (true)` policies from `rls-policies.sql` /
+  `restore-products-rls.sql` and the site repo's newer `is_admin()`-gated
+  ones can coexist — Postgres RLS is permissive/OR'd, so either one passing
+  is enough) — **don't assume today's live behavior for `products`/`brands`/
+  `stores` matches what either individual script alone would produce; verify
+  empirically if it matters.**
+- `offers`, `deals`, `sale_events`: the site repo's `schema.sql` now defines
+  these as `to authenticated using (is_admin()) with check (is_admin())`,
+  replacing an earlier wide-open `"public write" using (true)` policy — a
+  real fix for a previously-flagged vulnerability (anyone holding the public
+  anon key, which ships in both apps' bundles, could previously write with
+  no login at all). If you find anon can still write to these three, the old
+  policy wasn't actually dropped when the new one was added — check for it.
+- `nav_items`, `pages`, `faqs`, `contact_messages`: new tables, so they
+  started with the `is_admin()` model from day one rather than inheriting
+  the older gap — see their per-table entries above.
+- `products`/`brands`/`stores`/`coupons` do **not** have an `is_admin()`
+  write policy defined in the site repo's `schema.sql` at all (only
+  `offers`/`deals`/`sale_events` do) — their write access currently comes
+  entirely from the admin panel's own `to authenticated with check (true)`
+  scripts, which check real Supabase Auth but not `admin_users` membership.
+  **Not yet consolidated onto the same `is_admin()` model as offers/deals/
+  sale_events** — worth doing at some point so "who counts as an admin" is
+  answered in exactly one place, not two different policies with two
+  different notions of "authenticated".
 
 ## Realtime
 
 `supabase_realtime` publication currently includes **all of**: `products`,
 `offers`, `deals`, `sale_events` (verified live). `brands`, `stores`,
-`coupons` are not in the publication — no current UI needs live updates for
-those.
+`coupons`, `reviews`, `nav_items`, `pages`, `faqs`, `contact_messages` are
+not in the publication — no current UI needs live updates for those (the
+site's nav fetch, CMS pages, and FAQ page all just re-query on page load;
+there's no open-tab-needs-to-update-without-reload requirement for any of
+them the way there is for prices/availability).
 
 - Site's consumer: `src/lib/live-catalog.ts` — subscribes to all four
   published tables, mutates the shared in-memory `products`/`deals`/
@@ -161,3 +203,20 @@ run — policies here have drifted from file history at least once already
   delete policies on `products` (policies don't survive a table recreation),
   which `restore-products-rls.sql` was written to fix. If `products` is ever
   recreated again (not just altered), remember write policies need re-adding.
+- The site repo's `supabase/schema.sql` was rewritten at some point to add
+  `admin_users`/`is_admin()` and gate `offers`/`deals`/`sale_events` writes
+  on it, dropping the old wide-open anon policy on those three — a real fix
+  for the vulnerability this file used to flag as an accepted gap. That
+  rewrite happened without a corresponding update to this file, so this file
+  described a security model that no longer matched reality for a while —
+  exactly the kind of drift this file exists to prevent. `products`/
+  `brands`/`stores`/`coupons` were never migrated onto the same model; see
+  the RLS section above.
+- The site's `/contact` form (`src/routes/contact.tsx`) was written against
+  a `contact_messages` table defined in `schema.sql`, but that table was
+  never actually created in the live project — every real contact form
+  submission was silently failing (into a toast error) until the admin
+  panel's `src/scripts/create-cms-tables.sql` created it (idempotently
+  mirroring the site's definition) while adding the Navigation/Pages/FAQ/
+  Contact-Queries admin sections. Worth remembering: a table being fully
+  defined in a repo's schema file doesn't mean it exists live — verify.

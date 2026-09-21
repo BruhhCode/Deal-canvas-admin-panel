@@ -1,11 +1,11 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Pencil, Trash2 } from 'lucide-react'
+import { Pencil, Search, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { BrandForm } from '@/components/admin/BrandForm'
 import { errorMessage } from '@/components/admin/FormField'
-import { categoryName } from '@/types/catalog'
+import { CATEGORIES, categoryName } from '@/types/catalog'
 import type { Brand } from '@/types/catalog'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
@@ -20,14 +20,53 @@ export const Route = createFileRoute('/admin/brands')({
   component: BrandsTab,
 })
 
+const SORTS = {
+  name: 'Name (A–Z)',
+  updated: 'Recently updated',
+  products: 'Most products',
+} as const
+type SortKey = keyof typeof SORTS
+
+// Compact, pill-shaped filter controls — matches the search bar's height so
+// the whole filter row reads as one connected group (same pattern as
+// admin/products.tsx).
+const pillClass =
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+
 function BrandsTab() {
   const brands = useBrands()
   const products = useProducts()
   const deals = useDeals()
   const { loaded } = useDataStatus()
   useLiveNow() // re-render periodically so "Last updated" cells stay current
+  const [q, setQ] = useState('')
+  const [category, setCategory] = useState('')
+  const [sort, setSort] = useState<SortKey>('name')
   const [editing, setEditing] = useState<Brand | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Brand | null>(null)
+
+  const productCount = (slug: string) =>
+    products.filter((p) => p.brand === slug).length
+
+  const rows = useMemo(() => {
+    const filtered = brands.filter((b) => {
+      if (category && b.category !== category) return false
+      if (q && !b.name.toLowerCase().includes(q.toLowerCase())) return false
+      return true
+    })
+
+    return [...filtered].sort((a, b) => {
+      switch (sort) {
+        case 'updated':
+          return b.updated_at.localeCompare(a.updated_at)
+        case 'products':
+          return productCount(b.slug) - productCount(a.slug)
+        case 'name':
+        default:
+          return a.name.localeCompare(b.name)
+      }
+    })
+  }, [brands, q, category, sort, products])
 
   const affectedCount = deleting
     ? products.filter((p) => p.brand === deleting.slug).length +
@@ -36,7 +75,44 @@ function BrandsTab() {
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Search brands..."
+              aria-label="Search brands"
+              className={`${pillClass} w-48 pl-8`}
+            />
+          </div>
+          <select
+            aria-label="Filter by category"
+            className={pillClass}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
+          >
+            <option value="">All categories</option>
+            {Object.entries(CATEGORIES).map(([slug, name]) => (
+              <option key={slug} value={slug}>
+                {name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Sort brands"
+            className={pillClass}
+            value={sort}
+            onChange={(e) => setSort(e.target.value as SortKey)}
+          >
+            {Object.entries(SORTS).map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         <button
           type="button"
           onClick={() => setEditing('new')}
@@ -60,7 +136,7 @@ function BrandsTab() {
             </tr>
           </thead>
           <tbody className="divide-y">
-            {brands.map((b) => (
+            {rows.map((b) => (
               <tr key={b.slug}>
                 <td className="px-4 py-3">
                   {b.name}
@@ -74,9 +150,7 @@ function BrandsTab() {
                   {b.category ? categoryName(b.category) : '—'}
                 </td>
                 <td className="px-4 py-3">{b.network}</td>
-                <td className="px-4 py-3">
-                  {products.filter((p) => p.brand === b.slug).length}
-                </td>
+                <td className="px-4 py-3">{productCount(b.slug)}</td>
                 <td className="px-4 py-3">
                   {deals.filter((d) => d.brand === b.slug).length}
                 </td>
@@ -105,14 +179,14 @@ function BrandsTab() {
                 </td>
               </tr>
             ))}
-            {brands.length === 0 ? (
+            {rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={7}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   {loaded
-                    ? 'No brands yet — add one to unlock Products and Deals.'
+                    ? 'No brands match your search.'
                     : 'Loading brands...'}
                 </td>
               </tr>

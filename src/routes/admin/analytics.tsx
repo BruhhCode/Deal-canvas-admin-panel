@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DealBadge } from '@/components/DealBadge'
 import { useCurrency } from '@/lib/currency'
-import { useBrands, useCoupons, useDeals } from '@/lib/data'
+import { useBrands, useCoupons, useDeals, useNetworks } from '@/lib/data'
 
 export const Route = createFileRoute('/admin/analytics')({
   component: AnalyticsTab,
@@ -10,6 +11,7 @@ function AnalyticsTab() {
   const deals = useDeals()
   const brands = useBrands()
   const coupons = useCoupons()
+  const networks = useNetworks()
   const { format } = useCurrency()
 
   const totalClicks = deals.reduce((s, d) => s + d.clicks, 0)
@@ -100,6 +102,41 @@ function AnalyticsTab() {
               ))}
           </ul>
         </div>
+      </div>
+
+      <div className="rounded-lg border bg-card">
+        <h2 className="px-6 pt-6 text-xl">Affiliate networks</h2>
+        <div className="mt-4 overflow-x-auto">
+          <table className="w-full min-w-[600px] text-sm">
+            <thead className="bg-cream text-left text-xs uppercase tracking-[0.12em] text-muted-foreground">
+              <tr>
+                <th className="px-6 py-3">Affiliate network</th>
+                <th className="px-4 py-3">Merchants</th>
+                <th className="px-4 py-3">Deals</th>
+                <th className="px-4 py-3">Clicks</th>
+                <th className="px-4 py-3">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {networks.map((n) => (
+                <tr key={n.name} className="border-t">
+                  <td className="px-6 py-3">{n.name}</td>
+                  <td className="px-4 py-3">{n.merchants}</td>
+                  <td className="px-4 py-3">{n.deals}</td>
+                  <td className="px-4 py-3">{n.clicks.toLocaleString('en-US')}</td>
+                  <td className="px-4 py-3">
+                    <DealBadge badge="ACTIVE" />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <p className="border-t px-6 py-3 text-xs text-muted-foreground">
+          Tracking links are generated per deal from merchant URL + network +
+          campaign + sub-ID, so new networks can be added without changing
+          the storefront.
+        </p>
       </div>
     </div>
   )
