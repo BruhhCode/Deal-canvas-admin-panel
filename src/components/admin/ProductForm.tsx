@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { X } from 'lucide-react'
 import { FormField, errorMessage, inputClass, selectClass } from './FormField'
 import { CATEGORIES } from '@/types/catalog'
 import type { Brand, ProductWithOffers } from '@/types/catalog'
@@ -34,15 +35,9 @@ const textToList = (text: string) =>
 // Image URLs can't safely go through the comma-separated helpers above: Nike/
 // Adidas CDN URLs embed their own transform params with commas in the URL
 // itself (e.g. ".../f_auto,c_scale,w_1.0,.../shoe.png"), so splitting on every
-// comma shreds a single URL into several broken fragments. URLs essentially
-// never contain newlines, so one-per-line is used for this field instead.
-const listToLines = (list: string[] | null | undefined) =>
-  (list ?? []).join('\n')
-const linesToList = (text: string) =>
-  text
-    .split('\n')
-    .map((s) => s.trim())
-    .filter(Boolean)
+// comma shreds a single URL into several broken fragments. Kept as one input
+// row per URL instead — same add/remove-row pattern as the offers list below
+// — so there's nothing to split at all.
 
 export function ProductForm({
   product,
@@ -67,7 +62,7 @@ export function ProductForm({
   const [gender, setGender] = useState(product?.gender ?? 'unisex')
   const [description, setDescription] = useState(product?.description ?? '')
   const [image, setImage] = useState(product?.image ?? '')
-  const [images, setImages] = useState(listToLines(product?.images))
+  const [images, setImages] = useState<string[]>(product?.images ?? [])
   const [colors, setColors] = useState(listToText(product?.colors))
   const [sizes, setSizes] = useState(listToText(product?.sizes))
   const [tags, setTags] = useState(listToText(product?.tags))
@@ -92,6 +87,10 @@ export function ProductForm({
     setOffers((prev) =>
       prev.map((o, idx) => (idx === i ? { ...o, ...patch } : o)),
     )
+  }
+
+  function updateImage(i: number, url: string) {
+    setImages((prev) => prev.map((img, idx) => (idx === i ? url : img)))
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -124,7 +123,7 @@ export function ProductForm({
       gender,
       description,
       image,
-      images: linesToList(images),
+      images: images.map((s) => s.trim()).filter(Boolean),
       colors: textToList(colors),
       sizes: textToList(sizes),
       tags: textToList(tags),
@@ -246,14 +245,40 @@ export function ProductForm({
         />
       </FormField>
 
-      <FormField label="Additional image URLs (one per line, optional)">
-        <textarea
-          className={`${inputClass} min-h-20 resize-y`}
-          value={images}
-          onChange={(e) => setImages(e.target.value)}
-          placeholder={'https://example.com/image-1.jpg\nhttps://example.com/image-2.jpg'}
-        />
-      </FormField>
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          Additional image URLs (optional)
+        </p>
+        <div className="space-y-2">
+          {images.map((url, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                className={inputClass}
+                value={url}
+                onChange={(e) => updateImage(i, e.target.value)}
+                placeholder="https://example.com/image.jpg"
+              />
+              <button
+                type="button"
+                aria-label="Remove image"
+                onClick={() =>
+                  setImages((prev) => prev.filter((_, idx) => idx !== i))
+                }
+                className="shrink-0 rounded-sm border p-2 hover:border-destructive hover:text-destructive"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => setImages((prev) => [...prev, ''])}
+          className="mt-2 rounded-sm border px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.12em] hover:border-clay"
+        >
+          + Add image
+        </button>
+      </div>
 
       <div className="grid grid-cols-2 gap-4">
         <FormField label="Colors (comma-separated)">
