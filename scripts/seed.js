@@ -1,14 +1,13 @@
 #!/usr/bin/env node
-// Deal Canvas — Supabase seed script
+// Deal Canvas — Supabase seed + product import script
 //
 // Usage:
-//   SUPABASE_URL=https://xxxx.supabase.co \
-//   SUPABASE_SERVICE_ROLE_KEY=eyJ... \
-//   node scripts/seed.js path/to/products-import.csv [--reset]
+//   npm run seed -- path/to/products-import.csv [--reset]
+//   (or: node scripts/seed.js path/to/products-import.csv [--reset])
 //
-// IMPORTANT: use the service_role key (not the anon key) — this script
-// bypasses RLS to insert seed data. Never ship the service_role key to
-// the browser/client; run this only from your local machine or a CI job.
+// Requires SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY in .env (never
+// committed — see .env.example and scripts/lib/env.mjs). This bypasses
+// RLS; run it only from your local machine.
 //
 // Re-runnable and non-destructive by default: brands/stores/products/deals/
 // coupons/sale_events upsert on their slug/id; offers upsert on
@@ -17,27 +16,25 @@
 // --reset, which additionally removes offers no longer present in the CSV
 // for the product_slugs being imported (never the whole table).
 //
-// NOTE: this was previously written with CommonJS require() calls, which
-// cannot run under this package's "type": "module" — it was effectively
-// broken (a hard ReferenceError, not just stale), and out of sync with the
-// current schema (old product_id-keyed rows, no gender/availability
-// normalization, no images gallery, no multi-store offer merging, and it
-// deleted-then-reinserted every offer for a product on every run). Rewritten
-// as ESM and brought in line with today's schema and the admin UI's Import
-// Feed parsing (src/components/admin/ImportFeedModal.tsx).
+// Each product's main image and gallery images are downloaded once,
+// resized to WebP, and uploaded to the "product-images" Storage bucket
+// (see scripts/lib/image-pipeline.mjs) instead of staying hotlinked
+// from the retailer's own CDN. A failure processing one product's images
+// does not abort the run — that product keeps its original URL, gets
+// logged, and is counted in the summary printed at the end.
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { createClient } from '@supabase/supabase-js'
+import { requireServiceRoleClient } from './lib/env.mjs'
+import {
+  ensurePublicBucket,
+  processProductImage,
+  runWithConcurrency,
+} from './lib/image-pipeline.mjs'
 import { brandsForDb, storesForDb, deals, coupons, saleEvents } from './static-data.js'
 
-const SUPABASE_URL = process.env.SUPABASE_URL
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error('Missing SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY env vars.')
-  process.exit(1)
-}
+const PRODUCT_IMAGES_BUCKET = 'product-images'
+const IMAGE_CONCURRENCY = 4
 
 const reset = process.argv.includes('--reset')
 const csvPath = process.argv.find((a, i) => i >= 2 && !a.startsWith('--'))
@@ -46,7 +43,7 @@ if (!csvPath) {
   process.exit(1)
 }
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY)
+const supabase = requireServiceRoleClient()
 
 // ---------------------------------------------------------------
 // CSV parsing — RFC4180-aware (quoted fields may contain commas/newlines),
@@ -284,6 +281,53 @@ async function upsertOffers(products) {
 }
 
 // ---------------------------------------------------------------
+// Image processing — downloads + re-encodes once per product; tolerant of
+// per-product failure (keeps the original URL, logs it, counts it).
+// ---------------------------------------------------------------
+async function processImages(products) {
+  await ensurePublicBucket(supabase, PRODUCT_IMAGES_BUCKET)
+
+  const summary = { processed: 0, skipped: 0, failed: 0, failures: [] }
+  const tasks = products.map((p) => async () => {
+    if (!p.image) return { skipped: true }
+
+    const main = await processProductImage(supabase, PRODUCT_IMAGES_BUCKET, p.slug, p.image)
+    p.image_source_url = p.image
+    p.image = main.url
+
+    if (p.images.length) {
+      const sourceGallery = p.images
+      const gallery = await Promise.all(
+        sourceGallery.map((url) => processProductImage(supabase, PRODUCT_IMAGES_BUCKET, p.slug, url)),
+      )
+      p.images = gallery.map((g) => g.url)
+      p.images_source_urls = sourceGallery
+    } else {
+      p.images_source_urls = []
+    }
+    return { skipped: false }
+  })
+
+  await runWithConcurrency(tasks, IMAGE_CONCURRENCY, (i, outcome) => {
+    const slug = products[i].slug
+    if (!outcome.ok) {
+      summary.failed++
+      summary.failures.push({ slug, error: outcome.error.message })
+      console.warn(`  [image] ${slug}: FAILED — ${outcome.error.message} (keeping original URL)`)
+      return
+    }
+    if (outcome.result.skipped) {
+      summary.skipped++
+    } else {
+      summary.processed++
+      console.log(`  [image] ${slug}: processed`)
+    }
+  })
+
+  return summary
+}
+
+// ---------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------
 async function main() {
@@ -299,6 +343,9 @@ async function main() {
 
   console.log('Seeding stores...')
   await upsertBatched('stores', storesForDb, 'slug')
+
+  console.log(`Processing product images (concurrency ${IMAGE_CONCURRENCY})...`)
+  const imageSummary = await processImages(products)
 
   console.log('Seeding products...')
   const productRows = products.map(({ offers: _offers, ...fields }) => fields)
@@ -316,6 +363,14 @@ async function main() {
   console.log('Seeding sale_events...')
   await upsertBatched('sale_events', saleEvents, 'id')
 
+  console.log('\n--- Image processing summary ---')
+  console.log(`Processed: ${imageSummary.processed}`)
+  console.log(`Skipped (no image URL): ${imageSummary.skipped}`)
+  console.log(`Failed (kept original URL): ${imageSummary.failed}`)
+  if (imageSummary.failures.length) {
+    console.log('Failures:')
+    for (const f of imageSummary.failures) console.log(`  - ${f.slug}: ${f.error}`)
+  }
   console.log('\nDone.')
 }
 

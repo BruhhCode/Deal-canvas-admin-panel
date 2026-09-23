@@ -133,7 +133,7 @@ As last verified directly against the live project:
 - `INSERT`: blocked for `anon` on `products`/`brands`/`stores`; open on
   `offers`/`deals`/`sale_events`. A logged-in (`authenticated`) session has
   full insert/update/delete via the `to authenticated` policies in
-  `src/scripts/rls-policies.sql` / `restore-products-rls.sql`.
+  `scripts/rls-policies.sql` / `restore-products-rls.sql`.
 - Practical effect: creating a product/brand/store from this dashboard
   requires an active login; editing an existing one currently doesn't
   (though it's not something to rely on — RLS here has drifted more than

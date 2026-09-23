@@ -35,9 +35,17 @@ src/
                               is the admin panel's own copy of the DB row shapes; keep in
                               sync with the site's equivalents (src/data/*.ts there) by hand,
                               there's no shared package between the two repos.
-  scripts/                    one-off SQL run manually in the Supabase SQL Editor
-    rls-policies.sql, restore-products-rls.sql, enable-products-realtime.sql,
-    seed.js, static-data.js, products-import.csv
+scripts/                      local Node scripts (service-role key, never in a browser
+                              bundle — kept outside src/ so nothing the Vite app imports
+                              can ever reach them) + one-off SQL run manually in the
+                              Supabase SQL Editor:
+  rls-policies.sql, restore-products-rls.sql, enable-products-realtime.sql,
+  add-image-columns.sql — SQL, run manually
+  seed.js                     CSV product import (+ image processing — see
+                              docs/shared-context.md's "Image & logo storage")
+  static-data.js               brands/stores/deals/coupons/sale_events seed data
+  backfill-product-images.mjs, backfill-brand-logos.mjs
+  lib/env.mjs, lib/image-pipeline.mjs   shared by all of the above
 ```
 
 ## Data access pattern

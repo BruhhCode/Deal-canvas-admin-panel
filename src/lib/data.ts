@@ -809,7 +809,7 @@ export async function deleteSaleEvent(id: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
-// Nav items — the public site's header nav (see src/scripts/create-cms-tables.sql)
+// Nav items — the public site's header nav (see scripts/create-cms-tables.sql)
 // ---------------------------------------------------------------------------
 
 export type NavItemInput = Omit<NavItem, 'updated_at'>

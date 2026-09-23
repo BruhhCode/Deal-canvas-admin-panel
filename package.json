@@ -12,7 +12,10 @@
     "preview": "vite preview",
     "lint": "eslint",
     "format": "prettier --write . && eslint --fix",
-    "check": "prettier --check ."
+    "check": "prettier --check .",
+    "seed": "node scripts/seed.js",
+    "backfill:images": "node scripts/backfill-product-images.mjs",
+    "backfill:logos": "node scripts/backfill-brand-logos.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",
@@ -36,8 +39,10 @@
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
+    "dotenv": "^18.0.3",
     "eslint": "^10.10.0",
     "prettier": "^3.8.1",
+    "sharp": "^0.35.4",
     "typescript": "^6.0.2",
     "vite": "^8.0.0"
   },
