@@ -95,7 +95,7 @@ A product can have many offers (one per store). `bestOffer()` (implemented indep
 `slug` (PK, text) · `title` · `content` (plain text — paragraphs separated by a blank line, same convention as the site's static `guides`; deliberately not HTML, no `dangerouslySetInnerHTML` anywhere) · `meta_description` (nullable) · `status` (`'DRAFT' | 'PUBLISHED'`) · `updated_at`. Rendered at the site's `/pages/$slug`; only `PUBLISHED` rows are visible there (public read policy is `using (status = 'PUBLISHED')`, not a blanket `using (true)`).
 
 ### `faqs` (added for the admin panel's FAQ section)
-`id` (PK, text, e.g. `"FAQ-<timestamp36>"`) · `section` (text — free-form grouping, e.g. `"Orders"`, `"Shipping"`) · `question` · `answer` · `sort_order` (int) · `updated_at`. Rendered at the site's `/faq`, grouped by `section`, with `FAQPage` JSON-LD generated from the live rows.
+`id` (PK, text, e.g. `"FAQ-<timestamp36>"`) · `page` (text, added via `scripts/add-faq-page-column.sql`; not a DB CHECK constraint, just a closed set the admin UI offers tabs for — `'general' | 'homepage' | 'deals' | 'stores' | 'brands'`, defaults to `'general'` so pre-existing rows keep showing on `/faq`) · `section` (text — free-form grouping within a page, e.g. `"Orders"`, `"Shipping"`) · `question` · `answer` · `sort_order` (int) · `updated_at`. Currently rendered only at the site's `/faq` (all rows, regardless of `page`, grouped by `section`, with `FAQPage` JSON-LD generated from the live rows) — **the site does not yet filter or split by `page`**; that's the admin panel organizing ahead of a site-side change. To actually show `page`-scoped FAQs on the homepage/deals/stores/brands pages, the site needs its own per-page query (`.eq('page', 'homepage')` etc.) and a rendered FAQ block on each of those routes — not done yet.
 
 ### `contact_messages` (defined in the site repo's schema.sql; table itself was missing from the live project until the admin panel's `create-cms-tables.sql` created it)
 `id` (PK, uuid) · `name` · `email` · `subject` (default `''`) · `message` · `created_at` · `status` (`'NEW' | 'READ' | 'RESOLVED'`, added by the admin panel's script — not in the site repo's original definition) · `updated_at` (same). Written only by the site's `/contact` form (anon insert-only, no public read at all — not even `authenticated` without `is_admin()`); the admin panel's Contact Queries section reads/triages/deletes via `is_admin()`-gated policies.
@@ -303,3 +303,26 @@ run — policies here have drifted from file history at least once already
   a separate, Node-only path (needed because image processing via `sharp`
   can't run in a browser) and does not get the same image processing the
   Import Feed modal doesn't have either; see "Image & logo storage" above.
+- The admin panel's Pages section (CMS-managed `pages` table) was found
+  empty when a request came in to "show privacy policy, about us, etc." —
+  investigated and confirmed there's no bug: those pages are hand-coded,
+  fully custom-designed routes in the site repo (`about.tsx`, `privacy.tsx`,
+  `terms.tsx`), never rows in `pages`, so the CMS section correctly shows
+  nothing for them. Deliberately did **not** seed decoy rows under similar
+  slugs — a `pages` row lives at `/pages/<slug>`, a different URL from the
+  real hardcoded routes, so it would just be disconnected duplicate content
+  an editor could confuse for the live page. If these should become
+  admin-editable, the real fix is rewiring `about.tsx`/`privacy.tsx`/
+  `terms.tsx` to read from `pages` (or an equivalent dedicated table),
+  giving up their bespoke layouts for plain-text CMS content — not done,
+  flagged for a decision before touching it.
+- Removed the Sales admin section (sidebar tab, `admin/sales.tsx`,
+  `SaleEventForm.tsx`) per explicit request. `sale_events` itself, its
+  `data.ts` CRUD helpers, and the Dashboard's sale-event count stat are
+  untouched — there is just no admin UI to create/edit/delete a sale event
+  anymore. The site's sales calendar still reads `sale_events` directly and
+  is unaffected.
+- Added `faqs.page` (`scripts/add-faq-page-column.sql`) so FAQs can be
+  scoped per site page instead of all living on one `/faq` list — see the
+  `faqs` table entry above for the current admin-only state and what the
+  site still needs to actually use it.
