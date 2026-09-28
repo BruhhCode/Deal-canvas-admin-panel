@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FormField, errorMessage, inputClass, selectClass } from './FormField'
 import { NetworkSelect } from './NetworkSelect'
+import { useToast } from './Toast'
 import { CATEGORIES, NETWORKS } from '@/types/catalog'
 import type { Brand } from '@/types/catalog'
 import { createBrand, slugify, updateBrand } from '@/lib/data'
@@ -14,6 +15,7 @@ export function BrandForm({
   onDone: () => void
   onCancel: () => void
 }) {
+  const toast = useToast()
   const [name, setName] = useState(brand?.name ?? '')
   const [slug, setSlug] = useState(brand?.slug ?? '')
   const [description, setDescription] = useState(brand?.description ?? '')
@@ -49,6 +51,7 @@ export function BrandForm({
       } else {
         await createBrand({ slug, ...fields })
       }
+      toast.show(brand ? 'Brand updated' : 'Brand created')
       onDone()
     } catch (err) {
       setError(errorMessage(err, 'Failed to save brand.'))

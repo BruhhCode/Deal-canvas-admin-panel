@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FormField, errorMessage, inputClass, selectClass } from './FormField'
 import { NetworkSelect } from './NetworkSelect'
+import { useToast } from './Toast'
 import { CATEGORIES, NETWORKS } from '@/types/catalog'
 import type { Brand, Deal, DealStatus } from '@/types/catalog'
 import { createDeal, slugify, updateDeal } from '@/lib/data'
@@ -34,6 +35,7 @@ export function DealForm({
   onDone: () => void
   onCancel: () => void
 }) {
+  const toast = useToast()
   const [title, setTitle] = useState(deal?.title ?? '')
   const [slug, setSlug] = useState(deal?.slug ?? '')
   const [product, setProduct] = useState(deal?.product ?? '')
@@ -142,6 +144,7 @@ export function DealForm({
       } else {
         await createDeal(input)
       }
+      toast.show(deal ? 'Deal updated' : 'Deal created')
       onDone()
     } catch (err) {
       setError(errorMessage(err, 'Failed to save deal.'))

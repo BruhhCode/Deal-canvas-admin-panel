@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { FormField, errorMessage, inputClass } from './FormField'
 import { NetworkSelect } from './NetworkSelect'
+import { useToast } from './Toast'
 import { NETWORKS } from '@/types/catalog'
 import type { Store } from '@/types/catalog'
 import { createStore, updateStore } from '@/lib/data'
@@ -14,6 +15,7 @@ export function StoreForm({
   onDone: () => void
   onCancel: () => void
 }) {
+  const toast = useToast()
   const [name, setName] = useState(store?.name ?? '')
   const [slug, setSlug] = useState(store?.slug ?? '')
   const [description, setDescription] = useState(store?.description ?? '')
@@ -72,6 +74,7 @@ export function StoreForm({
       } else {
         await createStore({ slug, ...fields })
       }
+      toast.show(store ? 'Store updated' : 'Store created')
       onDone()
     } catch (err) {
       setError(errorMessage(err, 'Failed to save store.'))

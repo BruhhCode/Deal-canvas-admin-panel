@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FormField, errorMessage, inputClass } from './FormField'
+import { useToast } from './Toast'
 import type { NavItem } from '@/types/catalog'
 import { createNavItem, slugify, updateNavItem } from '@/lib/data'
 
@@ -12,6 +13,7 @@ export function NavItemForm({
   onDone: () => void
   onCancel: () => void
 }) {
+  const toast = useToast()
   const [label, setLabel] = useState(item?.label ?? '')
   const [slug, setSlug] = useState(item?.slug ?? '')
   const [href, setHref] = useState(item?.href ?? '')
@@ -38,6 +40,7 @@ export function NavItemForm({
       } else {
         await createNavItem(input)
       }
+      toast.show(item ? 'Nav item updated' : 'Nav item created')
       onDone()
     } catch (err) {
       setError(errorMessage(err, 'Failed to save nav item.'))

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { X } from 'lucide-react'
 import { FormField, errorMessage, inputClass, selectClass } from './FormField'
+import { useToast } from './Toast'
 import { CATEGORIES } from '@/types/catalog'
 import type { Brand, ProductWithOffers } from '@/types/catalog'
 import { createProduct, slugify, updateProduct } from '@/lib/data'
@@ -52,6 +53,7 @@ export function ProductForm({
   onDone: () => void
   onCancel: () => void
 }) {
+  const toast = useToast()
   const [name, setName] = useState(product?.name ?? '')
   const [slug, setSlug] = useState(product?.slug ?? '')
   const [brand, setBrand] = useState(product?.brand ?? brands[0].slug)
@@ -141,6 +143,7 @@ export function ProductForm({
       } else {
         await createProduct(input)
       }
+      toast.show(product ? 'Product updated' : 'Product created')
       onDone()
     } catch (err) {
       setError(errorMessage(err, 'Failed to save product.'))

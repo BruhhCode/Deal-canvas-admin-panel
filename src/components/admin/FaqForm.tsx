@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FormField, errorMessage, inputClass, selectClass } from './FormField'
+import { useToast } from './Toast'
 import { FAQ_PAGES } from '@/types/catalog'
 import type { Faq, FaqPage } from '@/types/catalog'
 import { createFaq, updateFaq } from '@/lib/data'
@@ -17,6 +18,7 @@ export function FaqForm({
   onDone: () => void
   onCancel: () => void
 }) {
+  const toast = useToast()
   const [page, setPage] = useState<FaqPage>(faq?.page ?? defaultPage ?? 'general')
   const [section, setSection] = useState(faq?.section ?? sections[0] ?? '')
   const [question, setQuestion] = useState(faq?.question ?? '')
@@ -43,6 +45,7 @@ export function FaqForm({
       } else {
         await createFaq(input)
       }
+      toast.show(faq ? 'FAQ updated' : 'FAQ created')
       onDone()
     } catch (err) {
       setError(errorMessage(err, 'Failed to save FAQ.'))

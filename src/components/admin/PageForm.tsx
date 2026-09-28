@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { FormField, errorMessage, inputClass, selectClass } from './FormField'
+import { useToast } from './Toast'
 import type { Page, PageStatus } from '@/types/catalog'
 import { createPage, slugify, updatePage } from '@/lib/data'
 
@@ -14,6 +15,7 @@ export function PageForm({
   onDone: () => void
   onCancel: () => void
 }) {
+  const toast = useToast()
   const [title, setTitle] = useState(page?.title ?? '')
   const [slug, setSlug] = useState(page?.slug ?? '')
   const [content, setContent] = useState(page?.content ?? '')
@@ -48,6 +50,7 @@ export function PageForm({
       } else {
         await createPage(input)
       }
+      toast.show(page ? 'Page updated' : 'Page created')
       onDone()
     } catch (err) {
       setError(errorMessage(err, 'Failed to save page.'))
