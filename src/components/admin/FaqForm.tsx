@@ -1,19 +1,23 @@
 import { useState } from 'react'
-import { FormField, errorMessage, inputClass } from './FormField'
-import type { Faq } from '@/types/catalog'
+import { FormField, errorMessage, inputClass, selectClass } from './FormField'
+import { FAQ_PAGES } from '@/types/catalog'
+import type { Faq, FaqPage } from '@/types/catalog'
 import { createFaq, updateFaq } from '@/lib/data'
 
 export function FaqForm({
   faq,
   sections,
+  defaultPage,
   onDone,
   onCancel,
 }: {
   faq?: Faq
   sections: string[]
+  defaultPage?: FaqPage
   onDone: () => void
   onCancel: () => void
 }) {
+  const [page, setPage] = useState<FaqPage>(faq?.page ?? defaultPage ?? 'general')
   const [section, setSection] = useState(faq?.section ?? sections[0] ?? '')
   const [question, setQuestion] = useState(faq?.question ?? '')
   const [answer, setAnswer] = useState(faq?.answer ?? '')
@@ -30,7 +34,7 @@ export function FaqForm({
       return
     }
 
-    const input = { section, question, answer, sort_order: sortOrder }
+    const input = { page, section, question, answer, sort_order: sortOrder }
 
     setSaving(true)
     try {
@@ -51,8 +55,22 @@ export function FaqForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
+      <FormField label="Page (which site page this FAQ appears on)">
+        <select
+          className={selectClass}
+          value={page}
+          onChange={(e) => setPage(e.target.value as FaqPage)}
+        >
+          {Object.entries(FAQ_PAGES).map(([key, label]) => (
+            <option key={key} value={key}>
+              {label}
+            </option>
+          ))}
+        </select>
+      </FormField>
+
       <div className="grid grid-cols-2 gap-4">
-        <FormField label="Section (groups FAQs on the public page)">
+        <FormField label="Section (groups FAQs within the page)">
           <input
             className={inputClass}
             value={section}

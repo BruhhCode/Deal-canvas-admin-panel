@@ -157,9 +157,23 @@ export type Page = {
   updated_at: string
 }
 
-// Grouped by `section` (e.g. "Orders", "Shipping") for the public FAQ page.
+// Not a DB CHECK constraint (faqs.page is plain text) — just the closed set
+// the admin UI offers tabs for. Add a new site page here when it gets its
+// own FAQ block.
+export const FAQ_PAGES = {
+  general: 'General (FAQ page)',
+  homepage: 'Homepage',
+  deals: 'Deals page',
+  stores: 'Store pages',
+  brands: 'Brand pages',
+} as const
+export type FaqPage = keyof typeof FAQ_PAGES
+
+// Grouped by `page` (which site page it appears on) then by `section`
+// (e.g. "Orders", "Shipping") within that page.
 export type Faq = {
   id: string
+  page: FaqPage
   section: string
   question: string
   answer: string

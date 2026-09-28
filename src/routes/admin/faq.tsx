@@ -7,7 +7,8 @@ import { FaqForm } from '@/components/admin/FaqForm'
 import { errorMessage } from '@/components/admin/FormField'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import { deleteFaq, useDataStatus, useFaqs } from '@/lib/data'
-import type { Faq } from '@/types/catalog'
+import { FAQ_PAGES } from '@/types/catalog'
+import type { Faq, FaqPage } from '@/types/catalog'
 
 export const Route = createFileRoute('/admin/faq')({
   component: FaqTab,
@@ -21,17 +22,22 @@ function FaqTab() {
   const { loaded, error } = useDataStatus()
   useLiveNow()
   const [q, setQ] = useState('')
+  const [activePage, setActivePage] = useState<FaqPage>('general')
   const [editing, setEditing] = useState<Faq | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Faq | null>(null)
 
   const sections = useMemo(
-    () => Array.from(new Set(faqs.map((f) => f.section))).sort(),
-    [faqs],
+    () =>
+      Array.from(
+        new Set(faqs.filter((f) => f.page === activePage).map((f) => f.section)),
+      ).sort(),
+    [faqs, activePage],
   )
 
   const rows = useMemo(
     () =>
       faqs
+        .filter((f) => f.page === activePage)
         .filter((f) =>
           (f.section + f.question).toLowerCase().includes(q.toLowerCase()),
         )
@@ -40,16 +46,37 @@ function FaqTab() {
             ? a.sort_order - b.sort_order
             : a.section.localeCompare(b.section),
         ),
-    [faqs, q],
+    [faqs, activePage, q],
   )
 
   return (
     <>
       <p className="mb-4 max-w-2xl text-sm text-muted-foreground">
-        Every question shown on the public site's FAQ page, grouped by
-        section. Add a new section name directly on the "Add FAQ" form — it
-        appears automatically once a question uses it.
+        FAQs shown on the public site, split per page and then grouped by
+        section within that page. Add a new section name directly on the
+        "Add FAQ" form — it appears automatically once a question uses it.
       </p>
+
+      <div className="mb-4 flex flex-wrap gap-1.5 border-b pb-3">
+        {Object.entries(FAQ_PAGES).map(([key, label]) => {
+          const count = faqs.filter((f) => f.page === key).length
+          const active = activePage === key
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActivePage(key as FaqPage)}
+              className={`rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] ${
+                active
+                  ? 'bg-clay text-clay-foreground'
+                  : 'border text-foreground hover:border-clay'
+              }`}
+            >
+              {label} ({count})
+            </button>
+          )
+        })}
+      </div>
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="relative">
@@ -142,6 +169,7 @@ function FaqTab() {
           <FaqForm
             faq={editing === 'new' ? undefined : editing}
             sections={sections}
+            defaultPage={activePage}
             onDone={() => setEditing(null)}
             onCancel={() => setEditing(null)}
           />
