@@ -17,17 +17,23 @@ import {
   useProducts,
   useStores,
 } from '@/lib/data'
+import { NETWORKS } from '@/types/catalog'
 import type { Store } from '@/types/catalog'
 
 export const Route = createFileRoute('/admin/stores')({
   component: StoresTab,
 })
 
+// Compact, pill-shaped filter controls — same pattern as admin/products.tsx.
+const pillClass =
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+
 function StoresTab() {
   const stores = useStores()
   const products = useProducts()
   const { loaded } = useDataStatus()
   useLiveNow() // re-render periodically so "Last updated" cells stay current
+  const [network, setNetwork] = useState('')
   const [editing, setEditing] = useState<Store | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Store | null>(null)
   const [togglingStore, setTogglingStore] = useState<{
@@ -36,8 +42,11 @@ function StoresTab() {
   } | null>(null)
 
   const rows = useMemo(
-    () => [...stores].sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')),
-    [stores],
+    () =>
+      stores
+        .filter((s) => !network || s.network === network)
+        .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')),
+    [stores, network],
   )
 
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
@@ -49,7 +58,20 @@ function StoresTab() {
 
   return (
     <>
-      <div className="mb-4 flex justify-end">
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <select
+          aria-label="Filter by network"
+          className={pillClass}
+          value={network}
+          onChange={(e) => setNetwork(e.target.value)}
+        >
+          <option value="">All networks</option>
+          {NETWORKS.map((n) => (
+            <option key={n} value={n}>
+              {n}
+            </option>
+          ))}
+        </select>
         <button
           type="button"
           onClick={() => setEditing('new')}
@@ -128,13 +150,17 @@ function StoresTab() {
                 </td>
               </tr>
             ))}
-            {stores.length === 0 ? (
+            {rows.length === 0 ? (
               <tr>
                 <td
                   colSpan={8}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
-                  {loaded ? 'No stores yet.' : 'Loading stores...'}
+                  {loaded
+                    ? stores.length === 0
+                      ? 'No stores yet.'
+                      : 'No stores match your filters.'
+                    : 'Loading stores...'}
                 </td>
               </tr>
             ) : null}

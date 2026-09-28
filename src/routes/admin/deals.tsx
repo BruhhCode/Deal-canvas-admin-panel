@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Search } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
@@ -45,9 +44,9 @@ function DealsTab() {
   const { loaded } = useDataStatus()
   const { format } = useCurrency()
   useLiveNow() // re-render periodically so "Last updated" cells stay current
-  const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
   const [brand, setBrand] = useState('')
+  const [status, setStatus] = useState('')
   const [sort, setSort] = useState<SortKey>('updated')
   const [editing, setEditing] = useState<Deal | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Deal | null>(null)
@@ -56,11 +55,7 @@ function DealsTab() {
     const filtered = deals.filter((d) => {
       if (category && d.category !== category) return false
       if (brand && d.brand !== brand) return false
-      if (
-        q &&
-        !(d.title + brandName(brands, d.brand)).toLowerCase().includes(q.toLowerCase())
-      )
-        return false
+      if (status && d.status !== status) return false
       return true
     })
 
@@ -77,7 +72,7 @@ function DealsTab() {
           return a.title.localeCompare(b.title)
       }
     })
-  }, [deals, brands, q, category, brand, sort])
+  }, [deals, category, brand, status, sort])
 
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
     usePagination(rows)
@@ -86,16 +81,6 @@ function DealsTab() {
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search deals..."
-              aria-label="Search deals"
-              className={`${pillClass} w-48 pl-8`}
-            />
-          </div>
           <select
             aria-label="Filter by category"
             className={pillClass}
@@ -121,6 +106,18 @@ function DealsTab() {
                 {b.name}
               </option>
             ))}
+          </select>
+          <select
+            aria-label="Filter by status"
+            className={pillClass}
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">All statuses</option>
+            <option value="ACTIVE">Active</option>
+            <option value="PAUSED">Paused</option>
+            <option value="UPCOMING">Upcoming</option>
+            <option value="EXPIRED">Expired</option>
           </select>
           <select
             aria-label="Sort deals"
@@ -218,7 +215,7 @@ function DealsTab() {
                   colSpan={10}
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
-                  {loaded ? 'No deals match your search.' : 'Loading deals...'}
+                  {loaded ? 'No deals match your filters.' : 'Loading deals...'}
                 </td>
               </tr>
             ) : null}

@@ -1,12 +1,12 @@
 import { useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
-import { Pencil, Search, Trash2 } from 'lucide-react'
+import { Pencil, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { BrandForm } from '@/components/admin/BrandForm'
 import { errorMessage } from '@/components/admin/FormField'
-import { CATEGORIES, categoryName } from '@/types/catalog'
+import { CATEGORIES, NETWORKS, categoryName } from '@/types/catalog'
 import type { Brand } from '@/types/catalog'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
@@ -40,8 +40,8 @@ function BrandsTab() {
   const deals = useDeals()
   const { loaded } = useDataStatus()
   useLiveNow() // re-render periodically so "Last updated" cells stay current
-  const [q, setQ] = useState('')
   const [category, setCategory] = useState('')
+  const [network, setNetwork] = useState('')
   const [sort, setSort] = useState<SortKey>('updated')
   const [editing, setEditing] = useState<Brand | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Brand | null>(null)
@@ -52,7 +52,7 @@ function BrandsTab() {
   const rows = useMemo(() => {
     const filtered = brands.filter((b) => {
       if (category && b.category !== category) return false
-      if (q && !b.name.toLowerCase().includes(q.toLowerCase())) return false
+      if (network && b.network !== network) return false
       return true
     })
 
@@ -67,7 +67,7 @@ function BrandsTab() {
           return a.name.localeCompare(b.name)
       }
     })
-  }, [brands, q, category, sort, products])
+  }, [brands, category, network, sort, products])
 
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
     usePagination(rows)
@@ -81,16 +81,6 @@ function BrandsTab() {
     <>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-            <input
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Search brands..."
-              aria-label="Search brands"
-              className={`${pillClass} w-48 pl-8`}
-            />
-          </div>
           <select
             aria-label="Filter by category"
             className={pillClass}
@@ -101,6 +91,19 @@ function BrandsTab() {
             {Object.entries(CATEGORIES).map(([slug, name]) => (
               <option key={slug} value={slug}>
                 {name}
+              </option>
+            ))}
+          </select>
+          <select
+            aria-label="Filter by network"
+            className={pillClass}
+            value={network}
+            onChange={(e) => setNetwork(e.target.value)}
+          >
+            <option value="">All networks</option>
+            {NETWORKS.map((n) => (
+              <option key={n} value={n}>
+                {n}
               </option>
             ))}
           </select>
@@ -190,7 +193,7 @@ function BrandsTab() {
                   className="px-4 py-6 text-center text-muted-foreground"
                 >
                   {loaded
-                    ? 'No brands match your search.'
+                    ? 'No brands match your filters.'
                     : 'Loading brands...'}
                 </td>
               </tr>
