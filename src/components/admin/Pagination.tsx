@@ -34,7 +34,7 @@ export function usePagination<T>(rows: T[]) {
 }
 
 const pillClass =
-  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 export function Pagination({
   page,
@@ -79,7 +79,7 @@ export function Pagination({
           aria-label="Previous page"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="rounded-full border p-1.5 hover:border-clay hover:text-clay disabled:pointer-events-none disabled:opacity-40"
+          className="flex h-11 w-11 items-center justify-center rounded-full border hover:border-clay hover:text-clay disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronLeft className="h-3.5 w-3.5" />
         </button>
@@ -91,7 +91,7 @@ export function Pagination({
           aria-label="Next page"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= pageCount}
-          className="rounded-full border p-1.5 hover:border-clay hover:text-clay disabled:pointer-events-none disabled:opacity-40"
+          className="flex h-11 w-11 items-center justify-center rounded-full border hover:border-clay hover:text-clay disabled:pointer-events-none disabled:opacity-40"
         >
           <ChevronRight className="h-3.5 w-3.5" />
         </button>

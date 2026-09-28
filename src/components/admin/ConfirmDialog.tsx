@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef } from 'react'
+import { useFocusTrap } from './useFocusTrap'
 
 export function ConfirmDialog({
   title,
@@ -14,7 +15,8 @@ export function ConfirmDialog({
   onCancel: () => void
 }) {
   const titleId = useId()
-  const confirmRef = useRef<HTMLButtonElement>(null)
+  const dialogRef = useRef<HTMLDivElement>(null)
+  const cancelRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -24,13 +26,19 @@ export function ConfirmDialog({
     return () => window.removeEventListener('keydown', onKey)
   }, [onCancel])
 
+  useFocusTrap(dialogRef, true)
+
   useEffect(() => {
-    confirmRef.current?.focus()
+    // Cancel gets initial focus, not the destructive action -- a reflexive
+    // Enter press right after opening a delete confirmation (very plausible
+    // right after clicking a Trash icon) should never delete by accident.
+    cancelRef.current?.focus()
   }, [])
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 px-4">
       <div
+        ref={dialogRef}
         role="alertdialog"
         aria-modal="true"
         aria-labelledby={titleId}
@@ -42,6 +50,7 @@ export function ConfirmDialog({
         <p className="mt-2 text-sm text-muted-foreground">{description}</p>
         <div className="mt-5 flex justify-end gap-2">
           <button
+            ref={cancelRef}
             type="button"
             onClick={onCancel}
             className="rounded-sm border px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] hover:border-clay"
@@ -49,7 +58,6 @@ export function ConfirmDialog({
             Cancel
           </button>
           <button
-            ref={confirmRef}
             type="button"
             onClick={onConfirm}
             className="rounded-sm bg-destructive px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-destructive-foreground"

@@ -14,7 +14,7 @@ export function FormField({
 }
 
 export const inputClass =
-  'w-full rounded-sm border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-clay'
+  'w-full rounded-sm border bg-card px-3 py-2 text-sm text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 export const selectClass = inputClass
 
@@ -35,10 +35,17 @@ export function errorMessage(err: unknown, fallback: string): string {
 
 // Runs a fire-and-forget action (a status toggle, a delete) and surfaces any
 // failure instead of letting it fail silently as an unhandled rejection.
-export async function runAction(action: () => Promise<void>, fallback: string) {
+// Callers pass their own `onError` (usually a toast's `show`) rather than
+// this reaching for window.alert() itself, since it isn't a hook and can't
+// call useToast() directly.
+export async function runAction(
+  action: () => Promise<void>,
+  fallback: string,
+  onError: (message: string) => void,
+) {
   try {
     await action()
   } catch (err) {
-    window.alert(errorMessage(err, fallback))
+    onError(errorMessage(err, fallback))
   }
 }

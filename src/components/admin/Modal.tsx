@@ -1,5 +1,6 @@
 import { useEffect, useId, useRef } from 'react'
 import { X } from 'lucide-react'
+import { useFocusTrap } from './useFocusTrap'
 
 const SIZES = {
   md: 'max-w-lg',
@@ -29,6 +30,8 @@ export function Modal({
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
 
+  useFocusTrap(dialogRef, true)
+
   useEffect(() => {
     const field = dialogRef.current?.querySelector<HTMLElement>(
       'input, select, textarea',
@@ -53,7 +56,7 @@ export function Modal({
             type="button"
             onClick={onClose}
             aria-label="Close"
-            className="rounded-sm p-1 text-muted-foreground hover:text-clay"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:text-clay"
           >
             <X className="h-5 w-5" />
           </button>
