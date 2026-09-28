@@ -37,6 +37,19 @@ function RootDocument({ children }: { children: React.ReactNode }) {
     <html lang="en">
       <head>
         <HeadContent />
+        {/* TanStack Router code-splits each route into its own hashed JS
+            chunk. If a browser tab stays open across a new deploy (or
+            preloads a route right as one lands), the hash it's holding no
+            longer exists on the CDN and the dynamic import 404s -- Vite
+            fires "vite:preloadError" on window for exactly this case. A
+            reload picks up the new deploy's current chunk map; the
+            sessionStorage guard stops a genuinely broken deploy from
+            reload-looping forever. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){window.addEventListener('vite:preloadError',function(e){e.preventDefault();var k='__preload_reload_at__';var last=Number(sessionStorage.getItem(k)||0);if(Date.now()-last>10000){sessionStorage.setItem(k,String(Date.now()));window.location.reload();}});})();`,
+          }}
+        />
       </head>
       <body>
         {children}
