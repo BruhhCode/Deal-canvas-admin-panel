@@ -4,7 +4,9 @@ import { Eye, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { StatusBadge } from '@/components/admin/StatusBadge'
-import { errorMessage, runAction, selectClass } from '@/components/admin/FormField'
+import { runAction, selectClass } from '@/components/admin/FormField'
+import { useToast } from '@/components/admin/Toast'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
   deleteContactMessage,
@@ -27,17 +29,25 @@ function ContactTab() {
   const [statusFilter, setStatusFilter] = useState<ContactMessageStatus | ''>('')
   const [viewing, setViewing] = useState<ContactMessage | null>(null)
   const [deleting, setDeleting] = useState<ContactMessage | null>(null)
+  const toast = useToast()
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deleteContactMessage,
+    'Failed to delete message.',
+  )
 
   const rows = useMemo(
     () =>
-      messages.filter((m) => !statusFilter || m.status === statusFilter),
-    [messages, statusFilter],
+      messages
+        .filter((m) => !isHidden(m.id))
+        .filter((m) => !statusFilter || m.status === statusFilter),
+    [messages, isHidden, statusFilter],
   )
 
   function changeStatus(m: ContactMessage, status: ContactMessageStatus) {
     return runAction(
       () => setContactMessageStatus(m.id, status),
       'Failed to update message status.',
+      (message) => toast.show(message, { variant: 'error' }),
     )
   }
 
@@ -52,7 +62,7 @@ function ContactTab() {
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <select
           aria-label="Filter by status"
-          className="rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay"
+          className="rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1"
           value={statusFilter}
           onChange={(e) =>
             setStatusFilter(e.target.value as ContactMessageStatus | '')
@@ -116,7 +126,7 @@ function ContactTab() {
                       type="button"
                       aria-label={`View message from ${m.name}`}
                       onClick={() => setViewing(m)}
-                      className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-clay hover:text-clay"
                     >
                       <Eye className="h-3.5 w-3.5" />
                     </button>
@@ -124,7 +134,7 @@ function ContactTab() {
                       type="button"
                       aria-label={`Delete message from ${m.name}`}
                       onClick={() => setDeleting(m)}
-                      className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -178,13 +188,9 @@ function ContactTab() {
           title="Delete message"
           description={`This will permanently remove the message from "${deleting.name}".`}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deleteContactMessage(deleting.id)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete message.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.id, `Message from ${deleting.name}`)
+            setDeleting(null)
           }}
         />
       ) : null}

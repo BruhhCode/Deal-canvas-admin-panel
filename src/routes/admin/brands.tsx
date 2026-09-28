@@ -5,7 +5,7 @@ import { Modal } from '@/components/admin/Modal'
 import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { BrandForm } from '@/components/admin/BrandForm'
-import { errorMessage } from '@/components/admin/FormField'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { CATEGORIES, NETWORKS, categoryName } from '@/types/catalog'
 import type { Brand } from '@/types/catalog'
 import { timeAgo, useLiveNow } from '@/lib/time'
@@ -32,7 +32,7 @@ type SortKey = keyof typeof SORTS
 // the whole filter row reads as one connected group (same pattern as
 // admin/products.tsx).
 const pillClass =
-  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 function BrandsTab() {
   const brands = useBrands()
@@ -45,12 +45,17 @@ function BrandsTab() {
   const [sort, setSort] = useState<SortKey>('updated')
   const [editing, setEditing] = useState<Brand | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Brand | null>(null)
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deleteBrand,
+    'Failed to delete brand.',
+  )
 
   const productCount = (slug: string) =>
     products.filter((p) => p.brand === slug).length
 
   const rows = useMemo(() => {
     const filtered = brands.filter((b) => {
+      if (isHidden(b.slug)) return false
       if (category && b.category !== category) return false
       if (network && b.network !== network) return false
       return true
@@ -67,7 +72,7 @@ function BrandsTab() {
           return a.name.localeCompare(b.name)
       }
     })
-  }, [brands, category, network, sort, products])
+  }, [brands, isHidden, category, network, sort, products])
 
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
     usePagination(rows)
@@ -170,7 +175,7 @@ function BrandsTab() {
                       type="button"
                       aria-label={`Edit ${b.name}`}
                       onClick={() => setEditing(b)}
-                      className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-clay hover:text-clay"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -178,7 +183,7 @@ function BrandsTab() {
                       type="button"
                       aria-label={`Delete ${b.name}`}
                       onClick={() => setDeleting(b)}
-                      className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -236,13 +241,9 @@ function BrandsTab() {
               : `This will permanently remove "${deleting.name}".`
           }
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deleteBrand(deleting.slug)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete brand.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.slug, deleting.name)
+            setDeleting(null)
           }}
         />
       ) : null}

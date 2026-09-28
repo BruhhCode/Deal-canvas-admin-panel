@@ -5,7 +5,7 @@ import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { NavItemForm } from '@/components/admin/NavItemForm'
 import { StatusToggle } from '@/components/admin/StatusToggle'
-import { errorMessage } from '@/components/admin/FormField'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import { deleteNavItem, updateNavItem, useDataStatus, useNavItems } from '@/lib/data'
 import type { NavItem } from '@/types/catalog'
@@ -20,8 +20,14 @@ function NavigationTab() {
   useLiveNow()
   const [editing, setEditing] = useState<NavItem | 'new' | null>(null)
   const [deleting, setDeleting] = useState<NavItem | null>(null)
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deleteNavItem,
+    'Failed to delete nav item.',
+  )
 
-  const rows = [...navItems].sort((a, b) => a.sort_order - b.sort_order)
+  const rows = [...navItems]
+    .filter((n) => !isHidden(n.slug))
+    .sort((a, b) => a.sort_order - b.sort_order)
 
   return (
     <>
@@ -87,7 +93,7 @@ function NavigationTab() {
                       type="button"
                       aria-label={`Edit ${n.label}`}
                       onClick={() => setEditing(n)}
-                      className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-clay hover:text-clay"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -95,7 +101,7 @@ function NavigationTab() {
                       type="button"
                       aria-label={`Delete ${n.label}`}
                       onClick={() => setDeleting(n)}
-                      className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -136,13 +142,9 @@ function NavigationTab() {
           title="Delete nav item"
           description={`This will permanently remove "${deleting.label}" from the site header.`}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deleteNavItem(deleting.slug)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete nav item.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.slug, deleting.label)
+            setDeleting(null)
           }}
         />
       ) : null}

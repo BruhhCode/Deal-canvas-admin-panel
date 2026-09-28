@@ -5,7 +5,7 @@ import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { PageForm } from '@/components/admin/PageForm'
 import { StatusToggle } from '@/components/admin/StatusToggle'
-import { errorMessage } from '@/components/admin/FormField'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import { deletePage, updatePage, useDataStatus, usePages } from '@/lib/data'
 import type { Page } from '@/types/catalog'
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/admin/pages')({
 })
 
 const pillClass =
-  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 function PagesTab() {
   const pages = usePages()
@@ -24,13 +24,18 @@ function PagesTab() {
   const [q, setQ] = useState('')
   const [editing, setEditing] = useState<Page | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Page | null>(null)
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deletePage,
+    'Failed to delete page.',
+  )
 
   const rows = useMemo(
     () =>
       pages
+        .filter((p) => !isHidden(p.slug))
         .filter((p) => (p.title + p.slug).toLowerCase().includes(q.toLowerCase()))
         .sort((a, b) => a.title.localeCompare(b.title)),
-    [pages, q],
+    [pages, isHidden, q],
   )
 
   return (
@@ -105,7 +110,7 @@ function PagesTab() {
                       type="button"
                       aria-label={`Edit ${p.title}`}
                       onClick={() => setEditing(p)}
-                      className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-clay hover:text-clay"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -113,7 +118,7 @@ function PagesTab() {
                       type="button"
                       aria-label={`Delete ${p.title}`}
                       onClick={() => setDeleting(p)}
-                      className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -154,13 +159,9 @@ function PagesTab() {
           title="Delete page"
           description={`This will permanently remove "${deleting.title}".`}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deletePage(deleting.slug)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete page.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.slug, deleting.title)
+            setDeleting(null)
           }}
         />
       ) : null}

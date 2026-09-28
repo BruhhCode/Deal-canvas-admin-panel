@@ -6,6 +6,8 @@ import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { StoreForm } from '@/components/admin/StoreForm'
 import { StatusToggle } from '@/components/admin/StatusToggle'
+import { useToast } from '@/components/admin/Toast'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { errorMessage } from '@/components/admin/FormField'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
@@ -26,7 +28,7 @@ export const Route = createFileRoute('/admin/stores')({
 
 // Compact, pill-shaped filter controls — same pattern as admin/products.tsx.
 const pillClass =
-  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 function StoresTab() {
   const stores = useStores()
@@ -40,13 +42,19 @@ function StoresTab() {
     store: Store
     next: boolean
   } | null>(null)
+  const toast = useToast()
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deleteStore,
+    'Failed to delete store.',
+  )
 
   const rows = useMemo(
     () =>
       stores
+        .filter((s) => !isHidden(s.slug))
         .filter((s) => !network || s.network === network)
         .sort((a, b) => (b.updated_at ?? '').localeCompare(a.updated_at ?? '')),
-    [stores, network],
+    [stores, isHidden, network],
   )
 
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
@@ -134,7 +142,7 @@ function StoresTab() {
                       type="button"
                       aria-label={`Edit ${st.name}`}
                       onClick={() => setEditing(st)}
-                      className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-clay hover:text-clay"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -142,7 +150,7 @@ function StoresTab() {
                       type="button"
                       aria-label={`Delete ${st.name}`}
                       onClick={() => setDeleting(st)}
-                      className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -208,7 +216,9 @@ function StoresTab() {
               )
               setTogglingStore(null)
             } catch (err) {
-              window.alert(errorMessage(err, 'Failed to update store availability.'))
+              toast.show(errorMessage(err, 'Failed to update store availability.'), {
+                variant: 'error',
+              })
             }
           }}
         />
@@ -225,13 +235,9 @@ function StoresTab() {
               : `This will permanently remove "${deleting.name}" from the catalogue.`
           }
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deleteStore(deleting.slug)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete store.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.slug, deleting.name)
+            setDeleting(null)
           }}
         />
       ) : null}

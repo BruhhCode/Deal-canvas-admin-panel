@@ -7,7 +7,7 @@ import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { ProductForm } from '@/components/admin/ProductForm'
 import { ImportFeedModal } from '@/components/admin/ImportFeedModal'
 import { StatusToggle } from '@/components/admin/StatusToggle'
-import { errorMessage } from '@/components/admin/FormField'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { toUsd, useCurrency } from '@/lib/currency'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
@@ -42,7 +42,7 @@ type SortKey = keyof typeof SORTS
 // the whole filter row reads as one connected group instead of the old
 // full-width form-style dropdowns, which towered over the search input.
 const pillClass =
-  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 function ProductsTab() {
   const products = useProducts()
@@ -58,9 +58,14 @@ function ProductsTab() {
   const [editing, setEditing] = useState<ProductWithOffers | 'new' | null>(null)
   const [deleting, setDeleting] = useState<ProductWithOffers | null>(null)
   const [importing, setImporting] = useState(false)
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deleteProduct,
+    'Failed to delete product.',
+  )
 
   const rows = useMemo(() => {
     const filtered = products.filter((p) => {
+      if (isHidden(p.slug)) return false
       if (category && p.category !== category) return false
       if (brand && p.brand !== brand) return false
       if (availability && productStatus(p) !== availability) return false
@@ -82,7 +87,7 @@ function ProductsTab() {
     })
 
     return sorted
-  }, [products, category, brand, availability, sort])
+  }, [products, isHidden, category, brand, availability, sort])
 
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
     usePagination(rows)
@@ -218,7 +223,7 @@ function ProductsTab() {
                         type="button"
                         aria-label={`Edit ${p.name}`}
                         onClick={() => setEditing(p)}
-                        className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                        className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-clay hover:text-clay"
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </button>
@@ -226,7 +231,7 @@ function ProductsTab() {
                         type="button"
                         aria-label={`Delete ${p.name}`}
                         onClick={() => setDeleting(p)}
-                        className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                        className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -292,13 +297,9 @@ function ProductsTab() {
           title="Delete product"
           description={`This will permanently remove "${deleting.name}" and its offers.`}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deleteProduct(deleting.slug)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete product.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.slug, deleting.name)
+            setDeleting(null)
           }}
         />
       ) : null}

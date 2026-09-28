@@ -5,7 +5,7 @@ import { Pagination, usePagination } from '@/components/admin/Pagination'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { DealForm } from '@/components/admin/DealForm'
 import { StatusToggle } from '@/components/admin/StatusToggle'
-import { errorMessage } from '@/components/admin/FormField'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { toUsd, useCurrency } from '@/lib/currency'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import {
@@ -36,7 +36,7 @@ type SortKey = keyof typeof SORTS
 // the whole filter row reads as one connected group (same pattern as
 // admin/products.tsx).
 const pillClass =
-  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 function DealsTab() {
   const deals = useDeals()
@@ -50,9 +50,14 @@ function DealsTab() {
   const [sort, setSort] = useState<SortKey>('updated')
   const [editing, setEditing] = useState<Deal | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Deal | null>(null)
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deleteDeal,
+    'Failed to delete deal.',
+  )
 
   const rows = useMemo(() => {
     const filtered = deals.filter((d) => {
+      if (isHidden(d.id)) return false
       if (category && d.category !== category) return false
       if (brand && d.brand !== brand) return false
       if (status && d.status !== status) return false
@@ -72,7 +77,7 @@ function DealsTab() {
           return a.title.localeCompare(b.title)
       }
     })
-  }, [deals, category, brand, status, sort])
+  }, [deals, isHidden, category, brand, status, sort])
 
   const { page, pageSize, pageCount, pagedRows, totalCount, setPage, setPageSize } =
     usePagination(rows)
@@ -194,14 +199,14 @@ function DealsTab() {
                     <button
                       type="button"
                       onClick={() => setEditing(d)}
-                      className="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] hover:border-clay hover:text-clay"
+                      className="min-h-9 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] hover:border-clay hover:text-clay"
                     >
                       Edit
                     </button>
                     <button
                       type="button"
                       onClick={() => setDeleting(d)}
-                      className="rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] hover:border-destructive hover:text-destructive"
+                      className="min-h-9 rounded-full border px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] hover:border-destructive hover:text-destructive"
                     >
                       Delete
                     </button>
@@ -252,13 +257,9 @@ function DealsTab() {
           title="Delete deal"
           description={`This will permanently remove "${deleting.title}".`}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deleteDeal(deleting.id)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete deal.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.id, deleting.title)
+            setDeleting(null)
           }}
         />
       ) : null}

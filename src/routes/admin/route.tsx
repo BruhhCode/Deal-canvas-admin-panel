@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import {
   Link,
   Outlet,
@@ -23,6 +23,8 @@ import {
   X,
 } from 'lucide-react'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
+import { ToastProvider } from '@/components/admin/Toast'
+import { useFocusTrap } from '@/components/admin/useFocusTrap'
 import { useAuth } from '@/lib/auth'
 
 export const Route = createFileRoute('/admin')({
@@ -59,6 +61,9 @@ function AdminLayout() {
   const navigate = useNavigate()
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const drawerTitleId = useId()
+  const drawerRef = useRef<HTMLDivElement>(null)
+  const openDrawerButtonRef = useRef<HTMLButtonElement>(null)
 
   useEffect(() => {
     if (isReady && !isAuthenticated) {
@@ -71,6 +76,25 @@ function AdminLayout() {
   useEffect(() => {
     setMobileNavOpen(false)
   }, [pathname])
+
+  useEffect(() => {
+    if (!mobileNavOpen) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setMobileNavOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [mobileNavOpen])
+
+  useFocusTrap(drawerRef, mobileNavOpen)
+
+  useEffect(() => {
+    if (mobileNavOpen) {
+      drawerRef.current?.querySelector<HTMLElement>('button, a')?.focus()
+    } else {
+      openDrawerButtonRef.current?.focus()
+    }
+  }, [mobileNavOpen])
 
   if (!isAuthenticated) return null
 
@@ -125,6 +149,7 @@ function AdminLayout() {
   )
 
   return (
+    <ToastProvider>
     <div className="flex min-h-screen">
       {/* Desktop sidebar — always visible, sticky so it stays put while the
           content area scrolls. */}
@@ -141,15 +166,16 @@ function AdminLayout() {
       <div className="flex min-h-screen flex-1 flex-col">
         <div className="flex items-center justify-between border-b px-4 py-3 md:hidden">
           <button
+            ref={openDrawerButtonRef}
             type="button"
             aria-label="Open navigation"
             onClick={() => setMobileNavOpen(true)}
-            className="rounded-sm border p-1.5"
+            className="flex h-11 w-11 items-center justify-center rounded-sm border"
           >
             <Menu className="h-4 w-4" />
           </button>
           <p className="text-sm font-semibold">DealsCanvas Admin</p>
-          <div className="w-7" />
+          <div className="w-11" />
         </div>
 
         {mobileNavOpen ? (
@@ -158,17 +184,25 @@ function AdminLayout() {
               className="absolute inset-0 bg-black/40"
               onClick={() => setMobileNavOpen(false)}
             />
-            <aside className="absolute left-0 top-0 flex h-full w-64 flex-col bg-card px-4 py-6 shadow-card">
+            <aside
+              ref={drawerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby={drawerTitleId}
+              className="absolute left-0 top-0 flex h-full w-64 flex-col bg-card px-4 py-6 shadow-card"
+            >
               <div className="mb-6 flex items-center justify-between px-3">
                 <div>
                   <p className="editorial-eyebrow">DealsCanvas</p>
-                  <p className="text-lg font-semibold">Admin</p>
+                  <p id={drawerTitleId} className="text-lg font-semibold">
+                    Admin
+                  </p>
                 </div>
                 <button
                   type="button"
                   aria-label="Close navigation"
                   onClick={() => setMobileNavOpen(false)}
-                  className="rounded-sm border p-1.5"
+                  className="flex h-11 w-11 items-center justify-center rounded-sm border"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -194,5 +228,6 @@ function AdminLayout() {
         </div>
       </div>
     </div>
+    </ToastProvider>
   )
 }

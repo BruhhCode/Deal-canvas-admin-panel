@@ -1,10 +1,10 @@
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useState } from 'react'
 import { createFileRoute } from '@tanstack/react-router'
 import { Pencil, Search, Trash2 } from 'lucide-react'
 import { Modal } from '@/components/admin/Modal'
 import { ConfirmDialog } from '@/components/admin/ConfirmDialog'
 import { FaqForm } from '@/components/admin/FaqForm'
-import { errorMessage } from '@/components/admin/FormField'
+import { useUndoableDelete } from '@/components/admin/useUndoableDelete'
 import { timeAgo, useLiveNow } from '@/lib/time'
 import { deleteFaq, useDataStatus, useFaqs } from '@/lib/data'
 import { FAQ_PAGES } from '@/types/catalog'
@@ -15,7 +15,7 @@ export const Route = createFileRoute('/admin/faq')({
 })
 
 const pillClass =
-  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay'
+  'rounded-full border bg-card px-3 py-1.5 text-xs text-foreground outline-none focus:border-clay focus-visible:ring-2 focus-visible:ring-clay focus-visible:ring-offset-1'
 
 function FaqTab() {
   const faqs = useFaqs()
@@ -25,6 +25,12 @@ function FaqTab() {
   const [activePage, setActivePage] = useState<FaqPage>('general')
   const [editing, setEditing] = useState<Faq | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Faq | null>(null)
+  const tabIdPrefix = useId()
+  const panelId = useId()
+  const { isHidden, scheduleDelete } = useUndoableDelete(
+    deleteFaq,
+    'Failed to delete FAQ.',
+  )
 
   const sections = useMemo(
     () =>
@@ -37,6 +43,7 @@ function FaqTab() {
   const rows = useMemo(
     () =>
       faqs
+        .filter((f) => !isHidden(f.id))
         .filter((f) => f.page === activePage)
         .filter((f) =>
           (f.section + f.question).toLowerCase().includes(q.toLowerCase()),
@@ -46,7 +53,7 @@ function FaqTab() {
             ? a.sort_order - b.sort_order
             : a.section.localeCompare(b.section),
         ),
-    [faqs, activePage, q],
+    [faqs, isHidden, activePage, q],
   )
 
   return (
@@ -57,16 +64,21 @@ function FaqTab() {
         "Add FAQ" form — it appears automatically once a question uses it.
       </p>
 
-      <div className="mb-4 flex flex-wrap gap-1.5 border-b pb-3">
+      <div role="tablist" aria-label="FAQ page" className="mb-4 flex flex-wrap gap-1.5 border-b pb-3">
         {Object.entries(FAQ_PAGES).map(([key, label]) => {
           const count = faqs.filter((f) => f.page === key).length
           const active = activePage === key
           return (
             <button
               key={key}
+              id={`${tabIdPrefix}-${key}`}
+              role="tab"
+              aria-selected={active}
+              aria-controls={panelId}
+              tabIndex={active ? 0 : -1}
               type="button"
               onClick={() => setActivePage(key as FaqPage)}
-              className={`rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] ${
+              className={`min-h-11 rounded-sm px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.1em] ${
                 active
                   ? 'bg-clay text-clay-foreground'
                   : 'border text-foreground hover:border-clay'
@@ -78,6 +90,11 @@ function FaqTab() {
         })}
       </div>
 
+      <div
+        role="tabpanel"
+        id={panelId}
+        aria-labelledby={`${tabIdPrefix}-${activePage}`}
+      >
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
@@ -130,7 +147,7 @@ function FaqTab() {
                       type="button"
                       aria-label={`Edit ${f.question}`}
                       onClick={() => setEditing(f)}
-                      className="rounded-sm border p-1.5 hover:border-clay hover:text-clay"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-clay hover:text-clay"
                     >
                       <Pencil className="h-3.5 w-3.5" />
                     </button>
@@ -138,7 +155,7 @@ function FaqTab() {
                       type="button"
                       aria-label={`Delete ${f.question}`}
                       onClick={() => setDeleting(f)}
-                      className="rounded-sm border p-1.5 hover:border-destructive hover:text-destructive"
+                      className="flex h-11 w-11 items-center justify-center rounded-sm border hover:border-destructive hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -158,6 +175,7 @@ function FaqTab() {
             ) : null}
           </tbody>
         </table>
+      </div>
       </div>
 
       {editing ? (
@@ -181,13 +199,9 @@ function FaqTab() {
           title="Delete FAQ"
           description={`This will permanently remove "${deleting.question}".`}
           onCancel={() => setDeleting(null)}
-          onConfirm={async () => {
-            try {
-              await deleteFaq(deleting.id)
-              setDeleting(null)
-            } catch (err) {
-              window.alert(errorMessage(err, 'Failed to delete FAQ.'))
-            }
+          onConfirm={() => {
+            scheduleDelete(deleting.id, deleting.question)
+            setDeleting(null)
           }}
         />
       ) : null}
