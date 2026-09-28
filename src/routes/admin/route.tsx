@@ -8,7 +8,6 @@ import {
 } from '@tanstack/react-router'
 import {
   BarChart3,
-  CalendarDays,
   FileText,
   HelpCircle,
   LayoutDashboard,
@@ -47,7 +46,6 @@ const tabs = [
   { label: 'Brands', to: '/admin/brands', icon: Tags },
   { label: 'Stores', to: '/admin/stores', icon: Store },
   { label: 'Deals', to: '/admin/deals', icon: Percent },
-  { label: 'Sales', to: '/admin/sales', icon: CalendarDays },
   { label: 'Flights & Hotels', to: '/admin/travel', icon: Plane },
   { label: 'Analytics', to: '/admin/analytics', icon: BarChart3 },
   { label: 'Navigation', to: '/admin/navigation', icon: NavigationIcon },
