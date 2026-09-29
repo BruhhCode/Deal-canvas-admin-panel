@@ -58,6 +58,9 @@ dashboard**; prefer changing here over reviving anything in the site repo.
   breakdown.
 - **Navigation** — editable list of the public site's header nav links
   (drives `Header.tsx`'s live nav fetch there).
+- **Banners** — the homepage's hero carousel slides and its 3-across promo
+  banner row, both previously hardcoded on the site; the site falls back to
+  its original hardcoded content if this table is empty.
 - **Pages** — a minimal CMS (plain-text content, DRAFT/PUBLISHED), rendered
   at the site's `/pages/$slug`.
 - **FAQ** — grouped Q&A content, rendered at the site's `/faq`.

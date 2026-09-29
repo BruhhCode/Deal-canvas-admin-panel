@@ -97,6 +97,9 @@ A product can have many offers (one per store). `bestOffer()` (implemented indep
 ### `faqs` (added for the admin panel's FAQ section)
 `id` (PK, text, e.g. `"FAQ-<timestamp36>"`) · `page` (text, added via `scripts/add-faq-page-column.sql`; not a DB CHECK constraint, just a closed set the admin UI offers tabs for — `'general' | 'homepage' | 'deals' | 'stores' | 'brands'`, defaults to `'general'` so pre-existing rows keep showing on `/faq`) · `section` (text — free-form grouping within a page, e.g. `"Orders"`, `"Shipping"`) · `question` · `answer` · `sort_order` (int) · `updated_at`. Currently rendered only at the site's `/faq` (all rows, regardless of `page`, grouped by `section`, with `FAQPage` JSON-LD generated from the live rows) — **the site does not yet filter or split by `page`**; that's the admin panel organizing ahead of a site-side change. To actually show `page`-scoped FAQs on the homepage/deals/stores/brands pages, the site needs its own per-page query (`.eq('page', 'homepage')` etc.) and a rendered FAQ block on each of those routes — not done yet.
 
+### `banners` (added for the admin panel's Banners section; see `scripts/create-banners-table.sql`)
+`id` (PK, text, e.g. `"BANNER-<timestamp36>"`) · `placement` (`'hero' | 'promo'`, not a DB CHECK-backed closed set beyond the `check` in the create-table statement) · `image_url` · `alt` (default `''`) · `title` (nullable — only rendered for `promo`) · `subtitle` (nullable — only rendered for `promo`) · `href` (nullable; free text, rendered as a plain `<a href>` on the site, not a typed `Link`, same convention as `nav_items`) · `sort_order` (int) · `visible` (bool) · `updated_at`. `placement = 'hero'` rows are the full-bleed rotating background images behind the homepage's search box (`HeroCarousel.tsx`); `placement = 'promo'` rows are the 3-across banner row further down the homepage (`index.tsx`'s promo section) — the site only renders the first 3 `promo` rows by `sort_order`, but nothing enforces "exactly 3" at the DB level. The site's `/` loader fetches `visible = true` rows ordered by `sort_order` and falls back to hardcoded defaults (today's original hero/promo content) when the table is empty or unreachable, so the homepage never goes blank. `heroSrcSet()` (`HeroCarousel.tsx`) only builds a responsive `srcset` for `images.unsplash.com` URLs — an admin-uploaded image from any other host renders as a plain, non-resized `<img src>`.
+
 ### `contact_messages` (defined in the site repo's schema.sql; table itself was missing from the live project until the admin panel's `create-cms-tables.sql` created it)
 `id` (PK, uuid) · `name` · `email` · `subject` (default `''`) · `message` · `created_at` · `status` (`'NEW' | 'READ' | 'RESOLVED'`, added by the admin panel's script — not in the site repo's original definition) · `updated_at` (same). Written only by the site's `/contact` form (anon insert-only, no public read at all — not even `authenticated` without `is_admin()`); the admin panel's Contact Queries section reads/triages/deletes via `is_admin()`-gated policies.
 
@@ -116,9 +119,9 @@ corresponding update landing here until now. Last verified empirically
 writes against the live project):
 
 - **Read**: `anon` key can read `brands`, `stores`, `products`, `offers`,
-  `deals`, `sale_events`, `coupons`, `reviews`, `nav_items`, `faqs` — plus
-  `pages` where `status = 'PUBLISHED'`. `admin_users` and `contact_messages`
-  have no public read policy at all.
+  `deals`, `sale_events`, `coupons`, `reviews`, `nav_items`, `faqs`,
+  `banners` — plus `pages` where `status = 'PUBLISHED'`. `admin_users` and
+  `contact_messages` have no public read policy at all.
 - **Write**: confirmed live that a logged-in, `admin_users`-registered
   session can currently insert/update/delete `products`, `brands`, `stores`,
   and `offers`. The exact policy each of those is currently satisfying
@@ -136,9 +139,9 @@ writes against the live project):
   anon key, which ships in both apps' bundles, could previously write with
   no login at all). If you find anon can still write to these three, the old
   policy wasn't actually dropped when the new one was added — check for it.
-- `nav_items`, `pages`, `faqs`, `contact_messages`: new tables, so they
-  started with the `is_admin()` model from day one rather than inheriting
-  the older gap — see their per-table entries above.
+- `nav_items`, `pages`, `faqs`, `banners`, `contact_messages`: new tables, so
+  they started with the `is_admin()` model from day one rather than
+  inheriting the older gap — see their per-table entries above.
 - `products`/`brands`/`stores`/`coupons` do **not** have an `is_admin()`
   write policy defined in the site repo's `schema.sql` at all (only
   `offers`/`deals`/`sale_events` do) — their write access currently comes
@@ -153,11 +156,12 @@ writes against the live project):
 
 `supabase_realtime` publication currently includes **all of**: `products`,
 `offers`, `deals`, `sale_events` (verified live). `brands`, `stores`,
-`coupons`, `reviews`, `nav_items`, `pages`, `faqs`, `contact_messages` are
-not in the publication — no current UI needs live updates for those (the
-site's nav fetch, CMS pages, and FAQ page all just re-query on page load;
-there's no open-tab-needs-to-update-without-reload requirement for any of
-them the way there is for prices/availability).
+`coupons`, `reviews`, `nav_items`, `pages`, `faqs`, `banners`,
+`contact_messages` are not in the publication — no current UI needs live
+updates for those (the site's nav fetch, CMS pages, FAQ page, and homepage
+banners all just re-query on page load; there's no
+open-tab-needs-to-update-without-reload requirement for any of them the way
+there is for prices/availability).
 
 - Site's consumer: `src/lib/live-catalog.ts` — subscribes to all four
   published tables, mutates the shared in-memory `products`/`deals`/
