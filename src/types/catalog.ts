@@ -202,6 +202,30 @@ export type Faq = {
   updated_at: string
 }
 
+// Not a DB CHECK constraint (blog_posts.category is plain text) — just the
+// closed set the admin UI suggests via a datalist, same convention as FAQ's
+// section field. Free text is still accepted for a category not listed here.
+export const BLOG_CATEGORIES = ['Fashion', 'Beauty', 'Shopping Tips', 'Lifestyle', 'Trends']
+
+// The site's /blog and /blog/$slug editorial content, previously hardcoded
+// in src/data/blog.ts on the site. `body` is plain text with paragraphs
+// separated by a blank line — same convention as `Page.content`. Only
+// `status = 'PUBLISHED'` posts are readable by the site's anon key; `status
+// = 'DRAFT'` lets a post be written and previewed here before it goes live.
+export type BlogPost = {
+  slug: string
+  title: string
+  excerpt: string
+  category: string
+  read_time: string
+  author: string
+  image_url: string
+  body: string
+  status: PageStatus
+  published_at: string
+  updated_at: string
+}
+
 export type ContactMessageStatus = 'NEW' | 'READ' | 'RESOLVED'
 
 // Written by the public site's /contact form (anon insert-only); the admin

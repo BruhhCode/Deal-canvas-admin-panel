@@ -8,6 +8,7 @@ import { useMemo, useSyncExternalStore } from 'react'
 import { supabase } from './supabaseClient'
 import type {
   Banner,
+  BlogPost,
   Brand,
   ContactMessage,
   Coupon,
@@ -35,6 +36,7 @@ type DB = {
   pages: Page[]
   faqs: Faq[]
   banners: Banner[]
+  blogPosts: BlogPost[]
   contactMessages: ContactMessage[]
   loaded: boolean
   error: string | null
@@ -51,6 +53,7 @@ let db: DB = {
   pages: [],
   faqs: [],
   banners: [],
+  blogPosts: [],
   contactMessages: [],
   loaded: false,
   error: null,
@@ -200,6 +203,15 @@ async function fetchBanners(): Promise<Banner[]> {
   return data as Banner[]
 }
 
+async function fetchBlogPosts(): Promise<BlogPost[]> {
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .order('published_at', { ascending: false })
+  if (error) throw error
+  return data as BlogPost[]
+}
+
 async function fetchContactMessages(): Promise<ContactMessage[]> {
   const { data, error } = await supabase
     .from('contact_messages')
@@ -220,6 +232,7 @@ type TableKey =
   | 'pages'
   | 'faqs'
   | 'banners'
+  | 'blogPosts'
   | 'contactMessages'
 
 const fetchers: Record<TableKey, () => Promise<unknown>> = {
@@ -233,6 +246,7 @@ const fetchers: Record<TableKey, () => Promise<unknown>> = {
   pages: fetchPages,
   faqs: fetchFaqs,
   banners: fetchBanners,
+  blogPosts: fetchBlogPosts,
   contactMessages: fetchContactMessages,
 }
 
@@ -254,6 +268,7 @@ async function loadAll() {
       pages,
       faqs,
       banners,
+      blogPosts,
       contactMessages,
     ] = await Promise.all([
       fetchProducts(),
@@ -266,6 +281,7 @@ async function loadAll() {
       fetchPages(),
       fetchFaqs(),
       fetchBanners(),
+      fetchBlogPosts(),
       fetchContactMessages(),
     ])
     set({
@@ -279,6 +295,7 @@ async function loadAll() {
       pages,
       faqs,
       banners,
+      blogPosts,
       contactMessages,
       loaded: true,
       error: null,
@@ -343,6 +360,10 @@ export function useFaqs() {
 
 export function useBanners() {
   return useDb().banners
+}
+
+export function useBlogPosts() {
+  return useDb().blogPosts
 }
 
 export function useContactMessages() {
@@ -966,6 +987,42 @@ export async function deleteBanner(id: string): Promise<void> {
   const { error } = await supabase.from('banners').delete().eq('id', id)
   if (error) throw error
   await reload('banners')
+}
+
+// ---------------------------------------------------------------------------
+// Blog posts — the site's /blog and /blog/$slug editorial content (see
+// scripts/create-blog-table.sql). Only `status = 'PUBLISHED'` posts are
+// readable by the site's anon key.
+// ---------------------------------------------------------------------------
+
+export type BlogPostInput = Omit<BlogPost, 'updated_at'>
+
+export async function createBlogPost(input: BlogPostInput): Promise<void> {
+  const { error } = await supabase
+    .from('blog_posts')
+    .insert({ ...input, updated_at: new Date().toISOString() })
+  if (error) throw error
+  await reload('blogPosts')
+}
+
+export async function updateBlogPost(
+  slug: string,
+  patch: Partial<BlogPostInput>,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('slug', slug)
+    .select('slug')
+  if (error) throw error
+  assertRowsUpdated(data, 'Blog post')
+  await reload('blogPosts')
+}
+
+export async function deleteBlogPost(slug: string): Promise<void> {
+  const { error } = await supabase.from('blog_posts').delete().eq('slug', slug)
+  if (error) throw error
+  await reload('blogPosts')
 }
 
 // ---------------------------------------------------------------------------
