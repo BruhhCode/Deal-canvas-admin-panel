@@ -7,6 +7,7 @@
 import { useMemo, useSyncExternalStore } from 'react'
 import { supabase } from './supabaseClient'
 import type {
+  Banner,
   Brand,
   ContactMessage,
   Coupon,
@@ -33,6 +34,7 @@ type DB = {
   navItems: NavItem[]
   pages: Page[]
   faqs: Faq[]
+  banners: Banner[]
   contactMessages: ContactMessage[]
   loaded: boolean
   error: string | null
@@ -48,6 +50,7 @@ let db: DB = {
   navItems: [],
   pages: [],
   faqs: [],
+  banners: [],
   contactMessages: [],
   loaded: false,
   error: null,
@@ -188,6 +191,15 @@ async function fetchFaqs(): Promise<Faq[]> {
   return data as Faq[]
 }
 
+async function fetchBanners(): Promise<Banner[]> {
+  const { data, error } = await supabase
+    .from('banners')
+    .select('*')
+    .order('sort_order')
+  if (error) throw error
+  return data as Banner[]
+}
+
 async function fetchContactMessages(): Promise<ContactMessage[]> {
   const { data, error } = await supabase
     .from('contact_messages')
@@ -207,6 +219,7 @@ type TableKey =
   | 'navItems'
   | 'pages'
   | 'faqs'
+  | 'banners'
   | 'contactMessages'
 
 const fetchers: Record<TableKey, () => Promise<unknown>> = {
@@ -219,6 +232,7 @@ const fetchers: Record<TableKey, () => Promise<unknown>> = {
   navItems: fetchNavItems,
   pages: fetchPages,
   faqs: fetchFaqs,
+  banners: fetchBanners,
   contactMessages: fetchContactMessages,
 }
 
@@ -239,6 +253,7 @@ async function loadAll() {
       navItems,
       pages,
       faqs,
+      banners,
       contactMessages,
     ] = await Promise.all([
       fetchProducts(),
@@ -250,6 +265,7 @@ async function loadAll() {
       fetchNavItems(),
       fetchPages(),
       fetchFaqs(),
+      fetchBanners(),
       fetchContactMessages(),
     ])
     set({
@@ -262,6 +278,7 @@ async function loadAll() {
       navItems,
       pages,
       faqs,
+      banners,
       contactMessages,
       loaded: true,
       error: null,
@@ -322,6 +339,10 @@ export function usePages() {
 
 export function useFaqs() {
   return useDb().faqs
+}
+
+export function useBanners() {
+  return useDb().banners
 }
 
 export function useContactMessages() {
@@ -909,6 +930,42 @@ export async function deleteFaq(id: string): Promise<void> {
   const { error } = await supabase.from('faqs').delete().eq('id', id)
   if (error) throw error
   await reload('faqs')
+}
+
+// ---------------------------------------------------------------------------
+// Banners — the site's homepage hero slides ('hero') and the 3-across promo
+// row further down the page ('promo'). See scripts/create-banners-table.sql.
+// ---------------------------------------------------------------------------
+
+export type BannerInput = Omit<Banner, 'id' | 'updated_at'>
+
+export async function createBanner(input: BannerInput): Promise<void> {
+  const id = `BANNER-${Date.now().toString(36)}`
+  const { error } = await supabase
+    .from('banners')
+    .insert({ ...input, id, updated_at: new Date().toISOString() })
+  if (error) throw error
+  await reload('banners')
+}
+
+export async function updateBanner(
+  id: string,
+  patch: Partial<BannerInput>,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('banners')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  assertRowsUpdated(data, 'Banner')
+  await reload('banners')
+}
+
+export async function deleteBanner(id: string): Promise<void> {
+  const { error } = await supabase.from('banners').delete().eq('id', id)
+  if (error) throw error
+  await reload('banners')
 }
 
 // ---------------------------------------------------------------------------

@@ -9,6 +9,7 @@ import {
 import {
   BarChart3,
   FileText,
+  GalleryHorizontal,
   HelpCircle,
   LayoutDashboard,
   LogOut,
@@ -51,6 +52,7 @@ const tabs = [
   { label: 'Flights & Hotels', to: '/admin/travel', icon: Plane },
   { label: 'Analytics', to: '/admin/analytics', icon: BarChart3 },
   { label: 'Navigation', to: '/admin/navigation', icon: NavigationIcon },
+  { label: 'Banners', to: '/admin/banners', icon: GalleryHorizontal },
   { label: 'Pages', to: '/admin/pages', icon: FileText },
   { label: 'FAQ', to: '/admin/faq', icon: HelpCircle },
   { label: 'Contact Queries', to: '/admin/contact', icon: Mail },

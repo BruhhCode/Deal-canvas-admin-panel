@@ -143,6 +143,27 @@ export type NavItem = {
   updated_at: string
 }
 
+// Homepage image banners, editable from the admin panel instead of being
+// hardcoded in the site (HeroCarousel.tsx's SLIDES array, and index.tsx's
+// promoBanners array). 'hero' = the full-bleed rotating slides behind the
+// homepage's search box; 'promo' = the 3-across banner row further down the
+// page. title/subtitle/href only render for 'promo' — the hero slides are
+// purely decorative background images with no text of their own.
+export type BannerPlacement = 'hero' | 'promo'
+
+export type Banner = {
+  id: string
+  placement: BannerPlacement
+  image_url: string
+  alt: string
+  title: string | null
+  subtitle: string | null
+  href: string | null
+  sort_order: number
+  visible: boolean
+  updated_at: string
+}
+
 export type PageStatus = 'DRAFT' | 'PUBLISHED'
 
 // A minimal CMS page. `content` is plain text with paragraphs separated by
