@@ -255,57 +255,46 @@ async function reload(table: TableKey) {
   set({ [table]: data })
 }
 
+const tableKeys: TableKey[] = [
+  'products',
+  'brands',
+  'stores',
+  'deals',
+  'coupons',
+  'saleEvents',
+  'navItems',
+  'pages',
+  'faqs',
+  'banners',
+  'blogPosts',
+  'contactMessages',
+]
+
+// One table failing to load (e.g. a migration that hasn't been run yet —
+// this exact thing happened with blog_posts before
+// scripts/create-blog-table.sql was applied) used to take the whole panel
+// down: Promise.all rejects as soon as any single fetch rejects, so every
+// tab — not just the one for the broken table — showed the global error
+// screen. Promise.allSettled + a per-table patch means the rest of the
+// admin app keeps working off whatever loaded successfully, and `error`
+// only names the table(s) that actually failed.
 async function loadAll() {
-  try {
-    const [
-      products,
-      brands,
-      stores,
-      deals,
-      coupons,
-      saleEvents,
-      navItems,
-      pages,
-      faqs,
-      banners,
-      blogPosts,
-      contactMessages,
-    ] = await Promise.all([
-      fetchProducts(),
-      fetchBrands(),
-      fetchStores(),
-      fetchDeals(),
-      fetchCoupons(),
-      fetchSaleEvents(),
-      fetchNavItems(),
-      fetchPages(),
-      fetchFaqs(),
-      fetchBanners(),
-      fetchBlogPosts(),
-      fetchContactMessages(),
-    ])
-    set({
-      products,
-      brands,
-      stores,
-      deals,
-      coupons,
-      saleEvents,
-      navItems,
-      pages,
-      faqs,
-      banners,
-      blogPosts,
-      contactMessages,
-      loaded: true,
-      error: null,
-    })
-  } catch (err) {
-    set({
-      loaded: true,
-      error: err instanceof Error ? err.message : 'Failed to load data.',
-    })
-  }
+  const results = await Promise.allSettled(tableKeys.map((key) => fetchers[key]()))
+  const patch: Record<string, unknown> = {}
+  const failures: string[] = []
+  results.forEach((result, i) => {
+    const key = tableKeys[i]
+    if (result.status === 'fulfilled') {
+      patch[key] = result.value
+    } else {
+      failures.push(`${key} (${result.reason instanceof Error ? result.reason.message : 'failed to load'})`)
+    }
+  })
+  set({
+    ...(patch as Partial<DB>),
+    loaded: true,
+    error: failures.length > 0 ? `Failed to load: ${failures.join(', ')}` : null,
+  })
 }
 
 void loadAll()
