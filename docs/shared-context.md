@@ -60,10 +60,10 @@ back to the original import).
 ## Tables (current shape — source of truth is Supabase itself; this is a snapshot)
 
 ### `brands`
-`slug` (PK, text) · `name` · `description` · `category` · `network` · `featured` (bool) · `logo_url` (nullable — our own Supabase Storage URL, `brand-logos` bucket; see "Image & logo storage") · `logo_source_url` (nullable — original hotlinked URL, kept for re-processing)
+`slug` (PK, text) · `name` · `description` · `category` · `network` · `featured` (bool) · `logo_url` (nullable — our own Supabase Storage URL, `brand-logos` bucket; see "Image & logo storage") · `logo_source_url` (nullable — original hotlinked URL, kept for re-processing) · `updated_at` (added via `scripts/add-brand-store-updated-at.sql` — the admin panel's createBrand/updateBrand always wrote this column, but it didn't exist live until this ran, which threw "Could not find the 'updated_at' column of 'brands' in the schema cache" on every brand edit)
 
 ### `stores`
-`slug` (PK, text) · `name` · `description` · `network` · `domain` · `campaign` · `store_id` · `sub_id` · `ships_to` · `store_wide_offer` (nullable) · `featured` (bool) · `sponsored` (bool) · `logo_url` (nullable — same `brand-logos` bucket, `stores/` prefix) · `logo_source_url` (nullable)
+`slug` (PK, text) · `name` · `description` · `network` · `domain` · `campaign` · `store_id` · `sub_id` · `ships_to` · `store_wide_offer` (nullable) · `featured` (bool) · `sponsored` (bool) · `logo_url` (nullable — same `brand-logos` bucket, `stores/` prefix) · `logo_source_url` (nullable) · `updated_at` (same fix/history as `brands.updated_at` above)
 
 ### `products`
 `slug` (PK, text) · `source_id` · `name` · `brand` (FK → `brands.slug`) · `category` · `subcategory` · `gender` · `description` · `image` · `images` (jsonb array) · `colors` (jsonb array) · `sizes` (jsonb array) · `tags` (jsonb array) · `rating` (numeric) · `reviews` (int) · `views` (int) · `new_in` (bool) · `updated_at` · `image_source_url` (nullable — original hotlinked retailer URL for `image`, kept for re-processing) · `images_source_urls` (jsonb array, nullable — original URLs for `images`, same order)
