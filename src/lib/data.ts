@@ -22,6 +22,7 @@ import type {
   Product,
   ProductWithOffers,
   SaleEvent,
+  SiteFilter,
   Store,
 } from '@/types/catalog'
 
@@ -38,6 +39,7 @@ type DB = {
   banners: Banner[]
   blogPosts: BlogPost[]
   contactMessages: ContactMessage[]
+  siteFilters: SiteFilter[]
   loaded: boolean
   error: string | null
 }
@@ -55,6 +57,7 @@ let db: DB = {
   banners: [],
   blogPosts: [],
   contactMessages: [],
+  siteFilters: [],
   loaded: false,
   error: null,
 }
@@ -221,6 +224,16 @@ async function fetchContactMessages(): Promise<ContactMessage[]> {
   return data as ContactMessage[]
 }
 
+async function fetchSiteFilters(): Promise<SiteFilter[]> {
+  const { data, error } = await supabase
+    .from('site_filters')
+    .select('*')
+    .order('section')
+    .order('sort_order')
+  if (error) throw error
+  return data as SiteFilter[]
+}
+
 type TableKey =
   | 'products'
   | 'brands'
@@ -234,6 +247,7 @@ type TableKey =
   | 'banners'
   | 'blogPosts'
   | 'contactMessages'
+  | 'siteFilters'
 
 const fetchers: Record<TableKey, () => Promise<unknown>> = {
   products: fetchProducts,
@@ -248,6 +262,7 @@ const fetchers: Record<TableKey, () => Promise<unknown>> = {
   banners: fetchBanners,
   blogPosts: fetchBlogPosts,
   contactMessages: fetchContactMessages,
+  siteFilters: fetchSiteFilters,
 }
 
 async function reload(table: TableKey) {
@@ -268,6 +283,7 @@ const tableKeys: TableKey[] = [
   'banners',
   'blogPosts',
   'contactMessages',
+  'siteFilters',
 ]
 
 // One table failing to load (e.g. a migration that hasn't been run yet —
@@ -357,6 +373,10 @@ export function useBlogPosts() {
 
 export function useContactMessages() {
   return useDb().contactMessages
+}
+
+export function useSiteFilters() {
+  return useDb().siteFilters
 }
 
 export function useDataStatus() {
@@ -1037,4 +1057,42 @@ export async function deleteContactMessage(id: string): Promise<void> {
   const { error } = await supabase.from('contact_messages').delete().eq('id', id)
   if (error) throw error
   await reload('contactMessages')
+}
+
+// ---------------------------------------------------------------------------
+// Site filters — controls the /shop and /deals listing filters on the site
+// (enabled, label, display style, order, options, range bounds). See
+// scripts/create-site-filters-table.sql and types/catalog.ts's
+// FILTER_KEYS_BY_SECTION for the closed set of keys the site recognizes.
+// ---------------------------------------------------------------------------
+
+export type SiteFilterInput = Omit<SiteFilter, 'id' | 'updated_at'>
+
+export async function createSiteFilter(input: SiteFilterInput): Promise<void> {
+  const id = `FILT-${input.section}-${input.key}-${Date.now().toString(36)}`
+  const { error } = await supabase
+    .from('site_filters')
+    .insert({ ...input, id, updated_at: new Date().toISOString() })
+  if (error) throw error
+  await reload('siteFilters')
+}
+
+export async function updateSiteFilter(
+  id: string,
+  patch: Partial<SiteFilterInput>,
+): Promise<void> {
+  const { data, error } = await supabase
+    .from('site_filters')
+    .update({ ...patch, updated_at: new Date().toISOString() })
+    .eq('id', id)
+    .select('id')
+  if (error) throw error
+  assertRowsUpdated(data, 'Filter')
+  await reload('siteFilters')
+}
+
+export async function deleteSiteFilter(id: string): Promise<void> {
+  const { error } = await supabase.from('site_filters').delete().eq('id', id)
+  if (error) throw error
+  await reload('siteFilters')
 }

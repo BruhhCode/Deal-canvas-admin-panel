@@ -66,6 +66,10 @@ dashboard**; prefer changing here over reviving anything in the site repo.
   fallback-to-original-content behavior when empty.
 - **Pages** — a minimal CMS (plain-text content, DRAFT/PUBLISHED), rendered
   at the site's `/pages/$slug`.
+- **Filters** — the filter sidebar on the site's `/shop` and `/deals` pages:
+  which filters show, their label, display style (dropdown, chip buttons, or
+  a checkbox list), order, option lists and range bounds, previously all
+  hardcoded directly in those two route files.
 - **FAQ** — grouped Q&A content, rendered at the site's `/faq`.
 - **Contact Queries** — read/triage (NEW/READ/RESOLVED)/delete messages
   submitted through the site's `/contact` form. Insert-only from the site's

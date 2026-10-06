@@ -20,6 +20,7 @@ import {
   Package,
   Percent,
   Plane,
+  SlidersHorizontal,
   Store,
   Tags,
   X,
@@ -56,6 +57,7 @@ const tabs = [
   { label: 'Banners', to: '/admin/banners', icon: GalleryHorizontal },
   { label: 'Blog', to: '/admin/blog', icon: Newspaper },
   { label: 'Pages', to: '/admin/pages', icon: FileText },
+  { label: 'Filters', to: '/admin/filters', icon: SlidersHorizontal },
   { label: 'FAQ', to: '/admin/faq', icon: HelpCircle },
   { label: 'Contact Queries', to: '/admin/contact', icon: Mail },
 ] as const

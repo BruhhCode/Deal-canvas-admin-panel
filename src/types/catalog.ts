@@ -267,3 +267,57 @@ export const NETWORKS = [
   'Admitad',
   'Amazon Associates',
 ] as const
+
+// Controls the filters on the site's /shop and /deals listing pages,
+// previously hardcoded directly in those route files. `key` identifies
+// which hardcoded filter a row overrides — the site only recognizes a fixed
+// set per section (see FILTER_KEYS_BY_SECTION below and
+// docs/shared-context.md), it isn't a free-form "any filter" system.
+export type FilterSection = 'shop' | 'deals'
+export type FilterControlType = 'select' | 'range' | 'checkbox' | 'sort'
+export type FilterDisplayStyle = 'dropdown' | 'chips' | 'checkbox-list'
+
+export type FilterOption = { value: string; label: string }
+
+// `options`: null means "use the site's own data-derived list" for filters
+// backed by live catalog data (category/brand/dealType) — only meaningful
+// to set explicitly for gender/sort, whose options aren't derived from data.
+// `min_value`/`max_value`/`step_value` only apply to control_type 'range'.
+export type SiteFilter = {
+  id: string
+  section: FilterSection
+  key: string
+  label: string
+  control_type: FilterControlType
+  display_style: FilterDisplayStyle | null
+  enabled: boolean
+  sort_order: number
+  options: FilterOption[] | null
+  min_value: number | null
+  max_value: number | null
+  step_value: number | null
+  updated_at: string
+}
+
+// The only keys the site actually reads per section (src/routes/shop.tsx,
+// src/routes/deals.tsx in the site repo) — the admin UI offers these as a
+// closed set per section rather than free text, so a row can't be created
+// that the site silently ignores.
+export const FILTER_KEYS_BY_SECTION: Record<FilterSection, { key: string; label: string; control_type: FilterControlType }[]> = {
+  shop: [
+    { key: 'category', label: 'Category', control_type: 'select' },
+    { key: 'gender', label: 'Shopping For', control_type: 'select' },
+    { key: 'price', label: 'Max price', control_type: 'range' },
+    { key: 'brand', label: 'Brand', control_type: 'select' },
+    { key: 'sort', label: 'Sort', control_type: 'sort' },
+  ],
+  deals: [
+    { key: 'category', label: 'Category', control_type: 'select' },
+    { key: 'brand', label: 'Brand', control_type: 'select' },
+    { key: 'dealType', label: 'Deal type', control_type: 'select' },
+    { key: 'discount', label: 'Minimum discount', control_type: 'range' },
+    { key: 'price', label: 'Max price', control_type: 'range' },
+    { key: 'includeExpired', label: 'Include expired deals', control_type: 'checkbox' },
+    { key: 'sort', label: 'Sort', control_type: 'sort' },
+  ],
+}

@@ -103,6 +103,9 @@ A product can have many offers (one per store). `bestOffer()` (implemented indep
 ### `blog_posts` (added for the admin panel's Blog section; see `scripts/create-blog-table.sql`)
 `slug` (PK, text) · `title` · `excerpt` · `category` (free text, not a DB CHECK constraint — `BLOG_CATEGORIES` in the admin panel's `types/catalog.ts` is just a datalist suggestion set) · `read_time` (free text, e.g. `"5 min"`) · `author` (default `'DealsCanvas Editorial'`) · `image_url` · `body` (plain text, paragraphs separated by a blank line — same convention as `pages.content`) · `status` (`'DRAFT' | 'PUBLISHED'`) · `published_at` · `updated_at`. Public read policy is `using (status = 'PUBLISHED')`, same as `pages`. Site reads via `src/data/blog.ts`'s `fetchPublishedBlogPosts()` (ordered by `published_at` descending), which both `/blog` and `/blog/$slug`'s loaders call, and falls back to that file's original hardcoded `defaultBlogPosts` array when the table is empty or unreachable — the site never has an empty blog because nobody's written a post through the admin panel yet. The site's `body` array (one string per paragraph, used for the "split at the midpoint for an in-article ad" layout) is derived by splitting the DB's single `body` text field on blank lines, not stored as an array.
 
+### `site_filters` (added for the admin panel's Filters section; see `scripts/create-site-filters-table.sql`)
+`id` (PK, text, e.g. `"FILT-shop-category"`) · `section` (`'shop' | 'deals'`) · `key` (text — identifies which hardcoded filter a row overrides; the site only recognizes a fixed set per section, see the admin panel's `types/catalog.ts`'s `FILTER_KEYS_BY_SECTION`: shop = `category|gender|price|brand|sort`, deals = `category|brand|dealType|discount|price|includeExpired|sort` — this is not a free-form "any filter" system) · `label` · `control_type` (`'select' | 'range' | 'checkbox' | 'sort'`) · `display_style` (`'dropdown' | 'chips' | 'checkbox-list'`, nullable — only meaningful for `select`/`sort`) · `enabled` (bool) · `sort_order` (int) · `options` (jsonb, nullable array of `{value,label}` — `null` means "use the site's own data-derived list" for `category`/`brand`/`dealType`, whose choices come from live catalog data; for `gender`/`sort` the site has its own hardcoded default when no row/override exists) · `min_value`/`max_value`/`step_value` (numeric, nullable — only for `control_type = 'range'`) · `updated_at`. Public read is `using (true)` (same as `nav_items`/`banners`), admin write via `is_admin()`. Site reads via a client-side hook on `/shop` and `/deals` (same "hardcoded fallback + live override" convention as `nav_items`) — a row here patches that one filter's enabled/label/style/order/options/range bounds; a key with no row at all still shows using the site's built-in default, so the admin panel can start empty without breaking either page.
+
 ### `contact_messages` (defined in the site repo's schema.sql; table itself was missing from the live project until the admin panel's `create-cms-tables.sql` created it)
 `id` (PK, uuid) · `name` · `email` · `subject` (default `''`) · `message` · `created_at` · `status` (`'NEW' | 'READ' | 'RESOLVED'`, added by the admin panel's script — not in the site repo's original definition) · `updated_at` (same). Written only by the site's `/contact` form (anon insert-only, no public read at all — not even `authenticated` without `is_admin()`); the admin panel's Contact Queries section reads/triages/deletes via `is_admin()`-gated policies.
 
@@ -123,8 +126,9 @@ writes against the live project):
 
 - **Read**: `anon` key can read `brands`, `stores`, `products`, `offers`,
   `deals`, `sale_events`, `coupons`, `reviews`, `nav_items`, `faqs`,
-  `banners` — plus `pages` and `blog_posts` where `status = 'PUBLISHED'`.
-  `admin_users` and `contact_messages` have no public read policy at all.
+  `banners`, `site_filters` — plus `pages` and `blog_posts` where
+  `status = 'PUBLISHED'`. `admin_users` and `contact_messages` have no
+  public read policy at all.
 - **Write**: confirmed live that a logged-in, `admin_users`-registered
   session can currently insert/update/delete `products`, `brands`, `stores`,
   and `offers`. The exact policy each of those is currently satisfying
@@ -142,9 +146,10 @@ writes against the live project):
   anon key, which ships in both apps' bundles, could previously write with
   no login at all). If you find anon can still write to these three, the old
   policy wasn't actually dropped when the new one was added — check for it.
-- `nav_items`, `pages`, `faqs`, `banners`, `blog_posts`, `contact_messages`:
-  new tables, so they started with the `is_admin()` model from day one
-  rather than inheriting the older gap — see their per-table entries above.
+- `nav_items`, `pages`, `faqs`, `banners`, `blog_posts`, `contact_messages`,
+  `site_filters`: new tables, so they started with the `is_admin()` model
+  from day one rather than inheriting the older gap — see their per-table
+  entries above.
 - `products`/`brands`/`stores`/`coupons` do **not** have an `is_admin()`
   write policy defined in the site repo's `schema.sql` at all (only
   `offers`/`deals`/`sale_events` do) — their write access currently comes
@@ -160,9 +165,10 @@ writes against the live project):
 `supabase_realtime` publication currently includes **all of**: `products`,
 `offers`, `deals`, `sale_events` (verified live). `brands`, `stores`,
 `coupons`, `reviews`, `nav_items`, `pages`, `faqs`, `banners`, `blog_posts`,
-`contact_messages` are not in the publication — no current UI needs live
-updates for those (the site's nav fetch, CMS pages, FAQ page, homepage
-banners, and blog all just re-query on page load; there's no
+`contact_messages`, `site_filters` are not in the publication — no current UI
+needs live updates for those (the site's nav fetch, CMS pages, FAQ page,
+homepage banners, filter config, and blog all just re-query on page load;
+there's no
 open-tab-needs-to-update-without-reload requirement for any of them the way
 there is for prices/availability).
 
