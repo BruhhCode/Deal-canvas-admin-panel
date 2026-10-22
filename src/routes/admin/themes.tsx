@@ -14,6 +14,8 @@ const THEME_DESCRIPTIONS: Record<SiteThemeKey, string> = {
   default: "The site's regular year-round look.",
   christmas:
     'Festive red/green accents, a gentle snowfall effect site-wide, and a holiday-themed homepage headline.',
+  halloween:
+    'Pumpkin orange/purple accents, falling bats and spiders with cobwebs and jack-o-lanterns around the site, and a spooky homepage headline.',
 }
 
 function ThemesTab() {

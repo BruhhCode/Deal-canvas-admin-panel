@@ -278,6 +278,7 @@ export const NETWORKS = [
 export const SITE_THEMES = {
   default: 'Default',
   christmas: 'Christmas',
+  halloween: 'Halloween',
 } as const
 export type SiteThemeKey = keyof typeof SITE_THEMES
 
