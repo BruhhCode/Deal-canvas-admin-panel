@@ -70,6 +70,10 @@ dashboard**; prefer changing here over reviving anything in the site repo.
   which filters show, their label, display style (dropdown, chip buttons, or
   a checkbox list), order, option lists and range bounds, previously all
   hardcoded directly in those two route files.
+- **Themes** — a one-click switch for which festive theme is live on the
+  site (colors, a decorative effect, and homepage copy, e.g. Christmas's
+  red/green palette + snowfall). Themes are code-built in the site repo, not
+  admin-authored — this section only picks which one is active.
 - **FAQ** — grouped Q&A content, rendered at the site's `/faq`.
 - **Contact Queries** — read/triage (NEW/READ/RESOLVED)/delete messages
   submitted through the site's `/contact` form. Insert-only from the site's

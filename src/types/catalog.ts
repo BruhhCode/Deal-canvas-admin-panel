@@ -268,6 +268,25 @@ export const NETWORKS = [
   'Amazon Associates',
 ] as const
 
+// Which festive theme is live on the site right now — a single-row config
+// (see scripts/create-site-theme-table.sql). The theme's actual palette,
+// decorative effect (e.g. Christmas's snowfall) and homepage copy are all
+// code-defined per key in the site repo; this table only stores which one
+// is selected. Add a new key here (and build its counterpart in the site
+// repo) when a new festive theme is ready — this is a closed set on
+// purpose, not an admin-authored custom-color system.
+export const SITE_THEMES = {
+  default: 'Default',
+  christmas: 'Christmas',
+} as const
+export type SiteThemeKey = keyof typeof SITE_THEMES
+
+export type SiteTheme = {
+  id: string
+  active_theme: SiteThemeKey
+  updated_at: string
+}
+
 // Controls the filters on the site's /shop and /deals listing pages,
 // previously hardcoded directly in those route files. `key` identifies
 // which hardcoded filter a row overrides — the site only recognizes a fixed

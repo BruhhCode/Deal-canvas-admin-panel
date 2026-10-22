@@ -23,6 +23,7 @@ import type {
   ProductWithOffers,
   SaleEvent,
   SiteFilter,
+  SiteTheme,
   Store,
 } from '@/types/catalog'
 
@@ -40,6 +41,7 @@ type DB = {
   blogPosts: BlogPost[]
   contactMessages: ContactMessage[]
   siteFilters: SiteFilter[]
+  siteTheme: SiteTheme | null
   loaded: boolean
   error: string | null
 }
@@ -58,6 +60,7 @@ let db: DB = {
   blogPosts: [],
   contactMessages: [],
   siteFilters: [],
+  siteTheme: null,
   loaded: false,
   error: null,
 }
@@ -234,6 +237,16 @@ async function fetchSiteFilters(): Promise<SiteFilter[]> {
   return data as SiteFilter[]
 }
 
+async function fetchSiteTheme(): Promise<SiteTheme> {
+  const { data, error } = await supabase
+    .from('site_theme')
+    .select('*')
+    .eq('id', 'singleton')
+    .single()
+  if (error) throw error
+  return data as SiteTheme
+}
+
 type TableKey =
   | 'products'
   | 'brands'
@@ -248,6 +261,7 @@ type TableKey =
   | 'blogPosts'
   | 'contactMessages'
   | 'siteFilters'
+  | 'siteTheme'
 
 const fetchers: Record<TableKey, () => Promise<unknown>> = {
   products: fetchProducts,
@@ -263,6 +277,7 @@ const fetchers: Record<TableKey, () => Promise<unknown>> = {
   blogPosts: fetchBlogPosts,
   contactMessages: fetchContactMessages,
   siteFilters: fetchSiteFilters,
+  siteTheme: fetchSiteTheme,
 }
 
 async function reload(table: TableKey) {
@@ -284,6 +299,7 @@ const tableKeys: TableKey[] = [
   'blogPosts',
   'contactMessages',
   'siteFilters',
+  'siteTheme',
 ]
 
 // One table failing to load (e.g. a migration that hasn't been run yet —
@@ -377,6 +393,10 @@ export function useContactMessages() {
 
 export function useSiteFilters() {
   return useDb().siteFilters
+}
+
+export function useSiteTheme() {
+  return useDb().siteTheme
 }
 
 export function useDataStatus() {
@@ -1095,4 +1115,21 @@ export async function deleteSiteFilter(id: string): Promise<void> {
   const { error } = await supabase.from('site_filters').delete().eq('id', id)
   if (error) throw error
   await reload('siteFilters')
+}
+
+// ---------------------------------------------------------------------------
+// Site theme — which festive theme (palette + decorative effect + homepage
+// copy, all code-defined in the site repo) is currently live. See
+// scripts/create-site-theme-table.sql and types/catalog.ts's SITE_THEMES.
+// ---------------------------------------------------------------------------
+
+export async function setActiveTheme(theme: SiteTheme['active_theme']): Promise<void> {
+  const { data, error } = await supabase
+    .from('site_theme')
+    .update({ active_theme: theme, updated_at: new Date().toISOString() })
+    .eq('id', 'singleton')
+    .select('id')
+  if (error) throw error
+  assertRowsUpdated(data, 'Theme')
+  await reload('siteTheme')
 }

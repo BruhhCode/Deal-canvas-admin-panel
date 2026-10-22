@@ -106,6 +106,9 @@ A product can have many offers (one per store). `bestOffer()` (implemented indep
 ### `site_filters` (added for the admin panel's Filters section; see `scripts/create-site-filters-table.sql`)
 `id` (PK, text, e.g. `"FILT-shop-category"`) · `section` (`'shop' | 'deals'`) · `key` (text — identifies which hardcoded filter a row overrides; the site only recognizes a fixed set per section, see the admin panel's `types/catalog.ts`'s `FILTER_KEYS_BY_SECTION`: shop = `category|gender|price|brand|sort`, deals = `category|brand|dealType|discount|price|includeExpired|sort` — this is not a free-form "any filter" system) · `label` · `control_type` (`'select' | 'range' | 'checkbox' | 'sort'`) · `display_style` (`'dropdown' | 'chips' | 'checkbox-list'`, nullable — only meaningful for `select`/`sort`) · `enabled` (bool) · `sort_order` (int) · `options` (jsonb, nullable array of `{value,label}` — `null` means "use the site's own data-derived list" for `category`/`brand`/`dealType`, whose choices come from live catalog data; for `gender`/`sort` the site has its own hardcoded default when no row/override exists) · `min_value`/`max_value`/`step_value` (numeric, nullable — only for `control_type = 'range'`) · `updated_at`. Public read is `using (true)` (same as `nav_items`/`banners`), admin write via `is_admin()`. Site reads via a client-side hook on `/shop` and `/deals` (same "hardcoded fallback + live override" convention as `nav_items`) — a row here patches that one filter's enabled/label/style/order/options/range bounds; a key with no row at all still shows using the site's built-in default, so the admin panel can start empty without breaking either page.
 
+### `site_theme` (added for the admin panel's Themes section; see `scripts/create-site-theme-table.sql`)
+Single-row config table — `id` (PK, text, always `'singleton'`) · `active_theme` (`'default' | 'christmas'`, CHECK-constrained — a closed set of code-built themes, not an admin-authored custom-color system) · `updated_at`. This table only stores *which* theme is selected; the theme's actual palette, decorative effect and homepage copy are all code-defined in the site repo per key — see `src/styles.css`'s `[data-theme="..."]` blocks (currently overrides `--clay`/`--sage`/`--ring`, the same tokens already used sitewide for discount/urgency and trust/info, so a theme reskins real UI rather than adding new one-off colors), `src/components/SnowfallEffect.tsx` (lazy-loaded, only mounted while `christmas` is active), and `src/routes/index.tsx`'s festive homepage copy. Public read is `using (true)`, admin write via `is_admin()`. Site reads via `src/lib/site-theme.ts`'s `useActiveTheme()` (same "hardcoded default + live override" convention as `nav_items`/`site_filters`) — starts at `'default'` until the client fetch resolves, falls back to `'default'` if the table is empty/unreachable/holds an unrecognized value. Adding a new theme means adding its key to both repos' closed sets (admin panel's `types/catalog.ts`'s `SITE_THEMES`, site's `src/lib/site-theme.ts`'s `ThemeKey`) and building its actual palette/effect/copy in the site repo — this table alone does nothing for an unbuilt key.
+
 ### `contact_messages` (defined in the site repo's schema.sql; table itself was missing from the live project until the admin panel's `create-cms-tables.sql` created it)
 `id` (PK, uuid) · `name` · `email` · `subject` (default `''`) · `message` · `created_at` · `status` (`'NEW' | 'READ' | 'RESOLVED'`, added by the admin panel's script — not in the site repo's original definition) · `updated_at` (same). Written only by the site's `/contact` form (anon insert-only, no public read at all — not even `authenticated` without `is_admin()`); the admin panel's Contact Queries section reads/triages/deletes via `is_admin()`-gated policies.
 
@@ -126,8 +129,8 @@ writes against the live project):
 
 - **Read**: `anon` key can read `brands`, `stores`, `products`, `offers`,
   `deals`, `sale_events`, `coupons`, `reviews`, `nav_items`, `faqs`,
-  `banners`, `site_filters` — plus `pages` and `blog_posts` where
-  `status = 'PUBLISHED'`. `admin_users` and `contact_messages` have no
+  `banners`, `site_filters`, `site_theme` — plus `pages` and `blog_posts`
+  where `status = 'PUBLISHED'`. `admin_users` and `contact_messages` have no
   public read policy at all.
 - **Write**: confirmed live that a logged-in, `admin_users`-registered
   session can currently insert/update/delete `products`, `brands`, `stores`,
@@ -147,9 +150,9 @@ writes against the live project):
   no login at all). If you find anon can still write to these three, the old
   policy wasn't actually dropped when the new one was added — check for it.
 - `nav_items`, `pages`, `faqs`, `banners`, `blog_posts`, `contact_messages`,
-  `site_filters`: new tables, so they started with the `is_admin()` model
-  from day one rather than inheriting the older gap — see their per-table
-  entries above.
+  `site_filters`, `site_theme`: new tables, so they started with the
+  `is_admin()` model from day one rather than inheriting the older gap —
+  see their per-table entries above.
 - `products`/`brands`/`stores`/`coupons` do **not** have an `is_admin()`
   write policy defined in the site repo's `schema.sql` at all (only
   `offers`/`deals`/`sale_events` do) — their write access currently comes
@@ -165,10 +168,10 @@ writes against the live project):
 `supabase_realtime` publication currently includes **all of**: `products`,
 `offers`, `deals`, `sale_events` (verified live). `brands`, `stores`,
 `coupons`, `reviews`, `nav_items`, `pages`, `faqs`, `banners`, `blog_posts`,
-`contact_messages`, `site_filters` are not in the publication — no current UI
-needs live updates for those (the site's nav fetch, CMS pages, FAQ page,
-homepage banners, filter config, and blog all just re-query on page load;
-there's no
+`contact_messages`, `site_filters`, `site_theme` are not in the publication —
+no current UI needs live updates for those (the site's nav fetch, CMS pages,
+FAQ page, homepage banners, filter config, theme selection, and blog all
+just re-query on page load; there's no
 open-tab-needs-to-update-without-reload requirement for any of them the way
 there is for prices/availability).
 
