@@ -30,28 +30,49 @@ function AnalyticsTab() {
     .slice(0, 6)
 
   const stats = [
-    { label: 'Total clicks', value: totalClicks.toLocaleString('en-US') },
+    { label: 'Total clicks', value: totalClicks.toLocaleString('en-US'), estimated: false },
     {
       label: 'Affiliate clicks',
       value: affiliateClicks.toLocaleString('en-US'),
+      estimated: true,
     },
-    { label: 'CTR', value: '6.4%' },
-    { label: 'Conversion rate', value: '4.1%' },
-    { label: 'Revenue (30d)', value: format(revenue) },
+    { label: 'CTR', value: '6.4%', estimated: true },
+    { label: 'Conversion rate', value: '4.1%', estimated: true },
+    { label: 'Revenue (30d)', value: format(revenue), estimated: true },
     {
       label: 'EPC',
       value: format(
         affiliateClicks ? Math.round(revenue / affiliateClicks) : 0,
       ),
+      estimated: true,
     },
   ]
 
   return (
     <div className="space-y-10">
+      <p className="max-w-2xl text-sm text-muted-foreground">
+        <strong className="text-foreground">Total clicks</strong> is real, live data — every "Get Deal" click on the
+        site now increments it. Tiles marked <strong className="text-foreground">(Est.)</strong> are projections off
+        that click count using fixed assumptions, not measured data — real conversion/revenue numbers require
+        integrating each affiliate network's own reporting (Rakuten, Impact, Awin, CJ, Admitad, Amazon Associates),
+        which isn't wired up yet.
+      </p>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {stats.map((s) => (
           <div key={s.label} className="rounded-lg border bg-card p-5">
-            <p className="editorial-eyebrow">{s.label}</p>
+            <p className="editorial-eyebrow flex items-center gap-1.5">
+              {s.label}
+              {s.estimated ? (
+                <span className="rounded-full bg-muted px-1.5 py-0.5 text-[0.6rem] font-semibold normal-case tracking-normal text-muted-foreground">
+                  estimated
+                </span>
+              ) : (
+                <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[0.6rem] font-semibold normal-case tracking-normal text-green-700">
+                  live
+                </span>
+              )}
+            </p>
             <p className="mt-2 font-serif text-3xl">{s.value}</p>
           </div>
         ))}

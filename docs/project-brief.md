@@ -118,6 +118,13 @@ bucket layout and URL contract.
   `brandLogo()`/`storeLogo()` also don't read the new `logo_url` column yet
   even after a logo backfill runs — that's a separate, not-yet-implemented
   site-repo change.
-- **Analytics numbers are illustrative, not measured** — CTR/conversion/
-  revenue are fixed-percentage assumptions applied to `deals.clicks`, not
-  real funnel tracking.
+- **Analytics: `deals.clicks`/"Total clicks" is now real** — the site calls
+  a narrowly-scoped `increment_deal_clicks()` RPC (see the site repo's
+  `scripts/migration-2026-10-click-tracking.sql`) every time someone clicks
+  a deal's outbound affiliate link, instead of `clicks` being a static
+  number frozen in at seed time. **Affiliate clicks/CTR/conversion rate/
+  revenue/EPC are still illustrative** — fixed-percentage assumptions
+  applied to that real click count, clearly labeled "estimated" in the
+  Analytics tab — real numbers for those require integrating each affiliate
+  network's own reporting (Rakuten, Impact, Awin, CJ, Admitad, Amazon
+  Associates), which isn't wired up.
